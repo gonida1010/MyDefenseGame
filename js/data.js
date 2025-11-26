@@ -4,7 +4,7 @@ export const GAME_CONFIG = {
   maxEnemies: 60,
   roundTime: 60,
   spawnInterval: 1200,
-  unitSummonCost: 200,
+  unitSummonCost: 150,
   bgColors: {
     normal: 0x050510,
     boss: 0x2c0404,

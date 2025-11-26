@@ -1861,7 +1861,7 @@ class GameScene extends Phaser.Scene {
     if (isBossRound) {
       this.bossSpawned = true;
 
-      moveSpeed = 15;
+      moveSpeed = 10;
 
       if (this.round === 10) {
         key = "boss_rui";
@@ -1894,7 +1894,7 @@ class GameScene extends Phaser.Scene {
       // 2. [옵션] 후반부 난이도 불지옥 모드 (10라운드 이후 추가 증가)
       // 라운드의 제곱만큼 체력을 더해서 후반에 잡몹이 안 죽게 만듦
       if (this.round > 10) {
-        baseHp += this.round * this.round * 2;
+        baseHp += this.round * this.round * 2.5;
       }
 
       hp = baseHp;
@@ -2904,7 +2904,7 @@ class GameScene extends Phaser.Scene {
       let reward = 0;
 
       if (e.isBoss) {
-        reward = 800;
+        reward = 1000;
 
         // 보스 처치 텍스트 이펙트 (크고 화려하게)
         this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
@@ -2913,10 +2913,10 @@ class GameScene extends Phaser.Scene {
 
         // 2. 잡몹: 라운드가 오를수록 돈 더 줌
         // 기본 5원 + (라운드 / 4) 만큼 추가
-        // + Math.floor(this.round / 2);
+        +Math.floor(this.round / 4);
 
         // 최대치 제한
-        // if (reward > 10) reward = 10;
+        if (reward > 10) reward = 10;
 
         // 텍스트 이펙트 (작게)
         // this.showGoldEffect(e.x, e.y, `+${reward}G`, "#f1c40f", 16);
