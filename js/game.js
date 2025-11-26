@@ -1792,9 +1792,9 @@ class GameScene extends Phaser.Scene {
     this.txtTime.setText(`TIME: ${this.currentTime}`);
 
     // 보상 지급(벨런스 조정 시 수정)
-    const reward = 50 + this.round * 10;
-    this.gold += reward;
-    this.txtGold.setText(`GOLD: ${this.gold}`);
+    // const reward = 50 + this.round * 10;
+    // this.gold += reward;
+    // this.txtGold.setText(`GOLD: ${this.gold}`);
 
     if (this.round % ENEMY_CONFIG.bossInterval === 0) {
       // 현재 라운드에 맞는 보스 정보 찾기
@@ -1966,11 +1966,11 @@ class GameScene extends Phaser.Scene {
     let targetTier = 1;
 
     if (chance <= 10) {
-      targetTier = 3; // 15% 확률 (희귀)
+      targetTier = 3; // 10% 확률 (희귀)
     } else if (chance <= 30) {
-      targetTier = 2; // 35% 확률 (고급)
+      targetTier = 2; // 30% 확률 (고급)
     } else {
-      targetTier = 1; // 50% 확률 (일반)
+      targetTier = 1; // 60% 확률 (일반)
     }
 
     const pool = Object.keys(UNIT_DATA).filter(

@@ -1,10 +1,10 @@
 // data.js 파일
 export const GAME_CONFIG = {
-  initialGold: 800,
+  initialGold: 1200,
   maxEnemies: 60,
   roundTime: 60,
   spawnInterval: 1200,
-  unitSummonCost: 100,
+  unitSummonCost: 200,
   bgColors: {
     normal: 0x050510,
     boss: 0x2c0404,
