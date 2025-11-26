@@ -2080,7 +2080,7 @@ class GameScene extends Phaser.Scene {
     if (isBossRound) {
       this.bossSpawned = true;
 
-      moveSpeed = 10;
+      moveSpeed = 5;
 
       if (this.round === 10) {
         key = "boss_rui";
@@ -2100,7 +2100,7 @@ class GameScene extends Phaser.Scene {
       } else if (this.round >= 60) {
         key = "boss_muzan";
         hp = ENEMY_CONFIG.types.boss_muzan.hpMult;
-        moveSpeed = 10;
+        moveSpeed = 5;
       }
     } else {
       // ==========================================================
