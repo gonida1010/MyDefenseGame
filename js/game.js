@@ -2079,28 +2079,36 @@ class GameScene extends Phaser.Scene {
     // [보스 등장 로직] 라운드별 보스 교체
     if (isBossRound) {
       this.bossSpawned = true;
-
-      moveSpeed = 5;
+      moveSpeed = 3;
 
       if (this.round === 10) {
-        key = "boss_rui";
+        key = "boss_rui"; // 하현5 루이
         hp = ENEMY_CONFIG.types.boss_rui.hpMult;
       } else if (this.round === 20) {
-        key = "boss_enmu";
+        key = "boss_enmu"; // 하현1 엔무
         hp = ENEMY_CONFIG.types.boss_enmu.hpMult;
       } else if (this.round === 30) {
-        key = "boss_daki";
+        key = "boss_daki"; // 상현6 다키
         hp = ENEMY_CONFIG.types.boss_daki.hpMult;
       } else if (this.round === 40) {
+        key = "boss_gyokko";
+        hp = ENEMY_CONFIG.types.boss_gyokko.hpMult;
+      } else if (this.round === 50) {
+        key = "boss_hantengu";
+        hp = ENEMY_CONFIG.types.boss_hantengu.hpMult;
+      } else if (this.round === 60) {
         key = "boss_akaza";
         hp = ENEMY_CONFIG.types.boss_akaza.hpMult;
-      } else if (this.round === 50) {
+      } else if (this.round === 70) {
+        key = "boss_doma";
+        hp = ENEMY_CONFIG.types.boss_doma.hpMult;
+      } else if (this.round === 80) {
         key = "boss_koku";
         hp = ENEMY_CONFIG.types.boss_koku.hpMult;
-      } else if (this.round >= 60) {
+      } else if (this.round >= 90) {
         key = "boss_muzan";
         hp = ENEMY_CONFIG.types.boss_muzan.hpMult;
-        moveSpeed = 5;
+        moveSpeed = 2;
       }
     } else {
       // ==========================================================

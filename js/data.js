@@ -843,14 +843,14 @@ export const ENEMY_CONFIG = {
       color: 0x81ecec,
       radius: 35,
       name: "상현2 도우마",
-      hpMult: 2000000,
+      hpMult: 3000000,
       cutscene: "boss_doma_img",
     },
     boss_koku: {
       color: 0x6c5ce7,
       radius: 40,
       name: "상현1 코쿠시보",
-      hpMult: 5000000,
+      hpMult: 6000000,
       cutscene: "boss_koku_img",
     },
     boss_muzan: {
