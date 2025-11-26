@@ -50,7 +50,7 @@ class BootScene extends Phaser.Scene {
     super("BootScene");
   }
   preload() {
-    this.load.setPath("../assets/images");
+    this.load.setPath("/MyDefenseGame/assets/images");
 
     // [추가] 메인 메뉴 배경 이미지 로드
     this.load.image("menu_bg", "background2.png");
