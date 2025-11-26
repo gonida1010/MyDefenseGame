@@ -1,0 +1,3277 @@
+// game.js 파일
+
+import { GAME_CONFIG, UNIT_DATA, RECIPES, ENEMY_CONFIG } from "./data.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC71OnYx9gKWl9KF3JnTRzY0efaoyX9DGM",
+  authDomain: "demon-slayer-random-defense.firebaseapp.com",
+  projectId: "demon-slayer-random-defense",
+  storageBucket: "demon-slayer-random-defense.firebasestorage.app",
+  messagingSenderId: "1058543956168",
+  appId: "1:1058543956168:web:c3ab59008ced6ed44535fd",
+};
+
+// 파이어베이스 초기화
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+let currentPlayerName = "이름없음";
+console.log("Firebase Connected!");
+
+// HTML UI 연동 (닉네임 입력)
+const overlay = document.getElementById("login-overlay");
+const nicknameInput = document.getElementById("nickname");
+const startBtn = document.getElementById("start-btn");
+
+// 시작 버튼 클릭 이벤트
+startBtn.addEventListener("click", () => {
+  const name = nicknameInput.value.trim();
+  if (name.length < 1) {
+    alert("이름을 입력해주세요!");
+    return;
+  }
+  currentPlayerName = name;
+  overlay.style.display = "none";
+  game.scene.start("MenuScene");
+});
+
+// Scene 1: Boot
+class BootScene extends Phaser.Scene {
+  constructor() {
+    super("BootScene");
+  }
+  preload() {
+    this.load.setPath("../assets/images");
+
+    // [추가] 메인 메뉴 배경 이미지 로드
+    this.load.image("menu_bg", "background2.png");
+    this.load.image("game_bg", "background3.png");
+
+    // [★★★ 공격 모션 ★★★]
+    this.load.spritesheet("attack_slayer_basic", "basic_attack.png", {
+      frameWidth: 175 / 5,
+      frameHeight: 32,
+    });
+    // 1. 탄지로 (type: "tanjiro_water")
+    this.load.spritesheet("attack_tanjiro_water", "tanjiro_attack.png", {
+      frameWidth: 252 / 7,
+      frameHeight: 32,
+    });
+
+    // 2. 젠이츠 (type: "zenitsu_thunder")
+    this.load.spritesheet("attack_zenitsu_thunder", "zenitsu_attack.png", {
+      frameWidth: 175 / 5,
+      frameHeight: 32,
+    });
+
+    // 3. 이노스케 (type: "inosuke_beast")
+    this.load.spritesheet("attack_inosuke_beast", "inosuke_attack.png", {
+      frameWidth: 175 / 5,
+      frameHeight: 32,
+    });
+
+    // 4. 카나오 (type: "kanao_flower")
+    this.load.spritesheet("attack_kanao_flower", "kanao_attack.png", {
+      frameWidth: 416 / 13,
+      frameHeight: 32,
+    });
+
+    // 5. 까마귀 (type: "crow_attack")
+    this.load.spritesheet("attack_crow", "crow_attack.png", {
+      frameWidth: 252 / 7,
+      frameHeight: 32,
+    });
+
+    // 6. 은(Kakushi) (type: "kakushi_support")
+    this.load.spritesheet("attack_kakushi_support", "kakushi_attack.png", {
+      frameWidth: 164 / 4,
+      frameHeight: 32,
+    });
+
+    this.load.spritesheet("attack_genya_gun", "genya_attack.png", {
+      frameWidth: 44,
+      frameHeight: 32,
+    });
+
+    this.load.spritesheet("attack_aoi_support", "tanjiro_attack.png", {
+      frameWidth: 252 / 7,
+      frameHeight: 32,
+    });
+
+    // 7. 우로코다키 (type: "urokodaki_water")
+    this.load.spritesheet("attack_urokodaki", "urokodaki_attack.png", {
+      frameWidth: 36,
+      frameHeight: 32,
+    });
+
+    // 8. 쿠와지마 (type: "jigoro_thunder")
+    this.load.spritesheet("attack_jigoro", "jigoro_attack.png", {
+      frameWidth: 35,
+      frameHeight: 32,
+    });
+
+    // 9. 하가네즈카 (type: "haganezuka_angry")
+    this.load.spritesheet("attack_haganezuka", "haganezuka_attack.png", {
+      frameWidth: 41,
+      frameHeight: 32,
+    });
+
+    // 10. 사비토 (type: "sabito_spirit")
+    this.load.spritesheet("attack_sabito", "sabito_attack.png", {
+      frameWidth: 32,
+      frameHeight: 27,
+    });
+
+    // 11. 네즈코 나무상자 (type: "nezuko_kick")
+    this.load.spritesheet("attack_nezuko_box", "nezuko_box_attack.png", {
+      frameWidth: 32,
+      frameHeight: 24,
+    });
+
+    // 12. 유시로 (type: "yushiro_paper")
+    this.load.spritesheet("attack_yushiro", "yushiro_attack.png", {
+      frameWidth: 32,
+      frameHeight: 24,
+    });
+
+    // 13. 무라타 (type: "murata_water")
+    this.load.spritesheet("attack_murata", "murata_attack.png", {
+      frameWidth: 35,
+      frameHeight: 32,
+    });
+
+    // 14. 기유 (type: "giyu_water")
+    this.load.spritesheet("attack_giyu", "giyu_attack.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
+    // 15. 렌고쿠 (type: "rengoku_fire")
+    this.load.spritesheet("attack_rengoku", "rengoku_attack.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
+    // 16. 텐겐 (type: "tengen_sound")
+    this.load.spritesheet("attack_tengen", "tengen_attack.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
+    // 17. 시노부 (type: "shinobu_poison")
+    this.load.spritesheet("attack_shinobu", "shinobu_attack.png", {
+      frameWidth: 32,
+      frameHeight: 256 / 8,
+    });
+
+    // 18. 카나에 (type: "kanae_flower")
+    this.load.spritesheet("attack_kanae", "kanae_attack.png", {
+      frameWidth: 32,
+      frameHeight: 32, // 8
+    });
+
+    // 19. 무이치로 (type: "muichiro_mist")
+    this.load.spritesheet("attack_muichiro", "muichiro_attack.png", {
+      frameWidth: 320 / 5,
+      frameHeight: 48,
+    });
+
+    // 20. 미츠리 (type: "mitsuri_love")
+    this.load.spritesheet("attack_mitsuri", "mitsuri_attack.png", {
+      frameWidth: 32, // 8
+      frameHeight: 32,
+    });
+
+    // 21. 오바나이 (type: "obanai_snake")
+    this.load.spritesheet("attack_obanai", "obanai_attack.png", {
+      frameWidth: 45, //6
+      frameHeight: 32,
+    });
+
+    // 22. 사네미 (type: "sanemi_wind")
+    this.load.spritesheet("attack_sanemi", "sanemi_attack.png", {
+      frameWidth: 35, // 5
+      frameHeight: 32,
+    });
+
+    // 23. 교메이 (type: "gyomei_stone")
+    this.load.spritesheet("attack_gyomei", "gyomei_attack.png", {
+      frameWidth: 32, // 30
+      frameHeight: 32,
+    });
+
+    // 24. 타마요 (type: "tamayo_blood")
+    this.load.spritesheet("attack_tamayo", "tamayo_attack.png", {
+      frameWidth: 192 / 4,
+      frameHeight: 32,
+    });
+
+    // 25. 탄지로(히노카미) (type: "tanjiro_sun")
+    this.load.spritesheet("attack_tanjiro_sun", "tanjiro_sun_attack.png", {
+      frameWidth: 400 / 8,
+      frameHeight: 50,
+    });
+
+    // 26. 젠이츠(신속) (type: "zenitsu_god")
+    this.load.spritesheet("attack_zenitsu_god", "zenitsu_god_attack.png", {
+      frameWidth: 32, // 13
+      frameHeight: 32,
+    });
+
+    // 27. 네즈코(각성) (type: "nezuko_blood_art")
+    this.load.spritesheet("attack_nezuko_awake", "nezuko_awake_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+
+    // 28. 기유(반점) (type: "giyu_mark_water")
+    this.load.spritesheet("attack_giyu_mark", "giyu_mark_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+
+    // 29. 무이치로(반점) (type: "muichiro_mark_mist")
+    this.load.spritesheet("attack_muichiro_mark", "muichiro_mark_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+
+    // 30. 타마요&유시로 (type: "tamayo_yushiro_combo")
+    this.load.spritesheet(
+      "attack_tamayo_yushiro",
+      "tamayo_yushiro_attack.png",
+      {
+        frameWidth: 224 / 7,
+        frameHeight: 32,
+      }
+    );
+
+    // 31. 이노스케(각성) (type: "inosuke_awake_beast")
+    this.load.spritesheet("attack_inosuke_awake", "inosuke_awake_attack.png", {
+      frameWidth: 152 / 4, // 38px
+      frameHeight: 32,
+    });
+
+    // ===============================================================
+    // [Tier 6] 신화 (Legend)
+    // ===============================================================
+
+    // 32. 탄지로(13형) (type: "tanjiro_13th")
+    this.load.spritesheet("attack_tanjiro_final", "tanjiro_final_attack.png", {
+      frameWidth: 48, // 16
+      frameHeight: 48,
+    });
+
+    // 33. 교메이(반점) (type: "gyomei_mark_stone")
+    this.load.spritesheet("attack_gyomei_mark", "gyomei_mark_attack.png", {
+      frameWidth: 48, // 18
+      frameHeight: 48,
+    });
+
+    // 34. 요리이치 (type: "yoriichi_sun")
+    this.load.spritesheet("attack_yoriichi", "yoriichi_attack.png", {
+      frameWidth: 36, // 10
+      frameHeight: 36,
+    });
+
+    // 35. 이노스케(산의 왕) (type: "inosuke_king_beast")
+    this.load.spritesheet("attack_inosuke_king", "inosuke_king_attack.png", {
+      frameWidth: 32, // 6
+      frameHeight: 32,
+    });
+
+    // ===============================================================
+    // [HIDDEN UNITS] 히든
+    // ===============================================================
+
+    // 36. 요리이치 영식 (type: "yoriichi_doll")
+    this.load.spritesheet("attack_yoriichi_zero", "yoriichi_zero_attack.png", {
+      frameWidth: 64, // 5
+      frameHeight: 48,
+    });
+
+    // 37. 코쿠시보(상현1) (type: "kokushibo_moon")
+    this.load.spritesheet("attack_koku", "koku_attack.png", {
+      frameWidth: 64, // 8
+      frameHeight: 64,
+    });
+
+    // 38. 탄지로(오니의 왕) (type: "tanjiro_demon_king")
+    this.load.spritesheet("attack_tanjiro_king", "tanjiro_king_attack.png", {
+      frameWidth: 64, // 15
+      frameHeight: 49,
+    });
+
+    // 39. 쌍둥이의 운명 (type: "twin_destiny_combo")
+    this.load.spritesheet("attack_twin_destiny", "twin_destiny_attack.png", {
+      frameWidth: 64, // 7
+      frameHeight: 64,
+    });
+
+    // 유닛 이미지 설정
+    for (const key in UNIT_DATA) {
+      this.load.image(key, `${key}.png`);
+      if (UNIT_DATA[key].cutscene) {
+        const cutsceneKey = UNIT_DATA[key].cutscene;
+        this.load.image(cutsceneKey, `${cutsceneKey}.png`);
+      }
+    }
+
+    // 적 이미지
+    this.load.image("enemy_lower", "enemy_lower.png");
+
+    // 보스 이미지 로드
+    this.load.image("boss_rui", "boss_rui.png");
+    this.load.image("boss_enmu", "boss_enmu.png");
+    this.load.image("boss_daki", "boss_daki.png");
+    this.load.image("boss_gyokko", "boss_gyokko.png");
+    this.load.image("boss_hantengu", "boss_hantengu.png");
+    this.load.image("boss_akaza", "boss_akaza.png");
+    this.load.image("boss_doma", "boss_doma.png");
+    this.load.image("boss_koku", "boss_koku.png");
+    this.load.image("boss_muzan", "boss_muzan.png");
+
+    // [보스 컷신 이미지 로드]
+    this.load.image("boss_rui_img", "boss_rui_cutscene.png");
+    this.load.image("boss_enmu_img", "boss_enmu_cutscene.png");
+    this.load.image("boss_daki_img", "boss_daki_cutscene.png");
+    this.load.image("boss_gyokko_img", "boss_gyokko_cutscene.png");
+    this.load.image("boss_hantengu_img", "boss_hantengu_cutscene.png");
+    this.load.image("boss_akaza_img", "boss_akaza_cutscene.png");
+    this.load.image("boss_doma_img", "boss_doma_cutscene.png");
+    this.load.image("boss_koku_img", "boss_koku_cutscene.png");
+    this.load.image("boss_muzan_img", "boss_muzan_cutscene.png");
+
+    // 총알 그래픽 생성
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(5, 5, 5);
+    g.generateTexture("bullet", 10, 10);
+
+    this.load.on("complete", () => {
+      console.log("모든 리소스 로딩 완료!");
+    });
+  }
+  create() {
+    this.scene.stop();
+  }
+}
+
+// --- Scene 2: Menu (랭킹 표시) ---
+class MenuScene extends Phaser.Scene {
+  constructor() {
+    super("MenuScene");
+  }
+
+  create() {
+    this.add
+      .image(640, 360, "menu_bg")
+      .setOrigin(0.5)
+      .setDisplaySize(1280, 720);
+
+    // 배경 때문에 글씨 안 보일 시
+    // this.add.rectangle(0, 0, 1280, 720, 0x000000, 0.5).setOrigin(0);
+
+    // 타이틀
+    this.add
+      .text(640, 100, "귀멸의 칼날\n랜덤 디펜스", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "48px",
+        color: "#e74c3c",
+        align: "center",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    // 환영 메시지
+    this.add
+      .text(640, 200, `대원: ${currentPlayerName}`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "#3498db",
+      })
+      .setOrigin(0.5);
+
+    // 게임 시작 버튼
+    const startBtn = this.add.container(640, 300);
+    const bg = this.add
+      .rectangle(0, 0, 200, 60, 0xe74c3c)
+      .setInteractive({ useHandCursor: true });
+    const txt = this.add
+      .text(0, 0, "전투 시작", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+      })
+      .setOrigin(0.5);
+    startBtn.add([bg, txt]);
+
+    bg.on("pointerdown", () => this.scene.start("GameScene"));
+    bg.on("pointerover", () => bg.setFillStyle(0xff0000));
+    bg.on("pointerout", () => bg.setFillStyle(0xe74c3c));
+
+    // --- 랭킹 보드 ---
+    this.add
+      .text(640, 400, "- 명예의 전당 (TOP) -", {
+        fontSize: "20px",
+        color: "#f1c40f",
+      })
+      .setOrigin(0.5);
+
+    this.leaderboardText = this.add
+      .text(640, 430, "기록을 불러오는 중...", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "18px",
+        color: "#aaa",
+        align: "center",
+        lineSpacing: 10,
+      })
+      .setOrigin(0.5, 0);
+
+    // 랭킹 데이터 로드
+    this.loadLeaderboard();
+  }
+
+  async loadLeaderboard() {
+    if (!db) {
+      this.leaderboardText.setText("데이터베이스 연결 실패");
+      return;
+    }
+    try {
+      // 'scores' 컬렉션에서 round 내림차순으로 10개 가져오기
+      const q = query(
+        collection(db, "scores"),
+        orderBy("round", "desc"),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        this.leaderboardText.setText("아직 기록이 없습니다.");
+        return;
+      }
+
+      let text = "";
+      let rank = 1;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        text += `${rank}위. ${data.name} - ${data.round}라운드\n`;
+        rank++;
+      });
+      this.leaderboardText.setText(text);
+    } catch (e) {
+      console.error(e);
+      this.leaderboardText.setText("랭킹 로드 중 오류 발생");
+    }
+  }
+}
+
+// Scene 3: Game
+class GameScene extends Phaser.Scene {
+  constructor() {
+    super("GameScene");
+  }
+
+  init() {
+    this.round = 1;
+    this.gold = GAME_CONFIG.initialGold;
+    this.lives = GAME_CONFIG.initialLives;
+    this.currentTime = GAME_CONFIG.roundTime;
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    this.bossSpawned = false;
+
+    this.gridSize = 6;
+    this.cellSize = 60;
+    this.gridOffsetX = 100;
+    this.gridOffsetY = 150;
+    this.gridState = Array(this.gridSize)
+      .fill(null)
+      .map(() => Array(this.gridSize).fill(null));
+  }
+
+  getTierColor(tier) {
+    switch (tier) {
+      case 1:
+        return "#bdc3c7";
+      case 2:
+        return "#3498db";
+      case 3:
+        return "#2ecc71";
+      case 4:
+        return "#9b59b6";
+      case 5:
+        return "#e67e22";
+      case 6:
+        return "#e74c3c";
+      default:
+        return "#ffffff";
+    }
+  }
+
+  create() {
+    // 배경
+    this.bg = this.add
+      .image(640, 360, "game_bg")
+      .setOrigin(0.5)
+      .setDisplaySize(1280, 720)
+      .setInteractive();
+
+    // 로드한 "basic_bullet_img"를 기반으로 애니메이션 생성
+    if (!this.anims.exists("anim_slayer_basic")) {
+      this.anims.create({
+        key: "anim_slayer_basic",
+        // 리소스 키 이름 (BootScene과 일치해야 함)
+        frames: this.anims.generateFrameNumbers("attack_slayer_basic", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: 0, // 무한 반복
+      });
+    }
+    // 1. 탄지로 물의 호흡
+    if (!this.anims.exists("anim_tanjiro_water")) {
+      this.anims.create({
+        key: "anim_tanjiro_water",
+        frames: this.anims.generateFrameNumbers("attack_tanjiro_water", {
+          start: 0,
+          end: 6,
+        }), // 5프레임(0~4)
+        frameRate: 15,
+        repeat: 0,
+      });
+    }
+
+    // 2. 젠이츠 벽력일섬
+    if (!this.anims.exists("anim_zenitsu_thunder")) {
+      this.anims.create({
+        key: "anim_zenitsu_thunder",
+        frames: this.anims.generateFrameNumbers("attack_zenitsu_thunder", {
+          start: 0,
+          end: 4,
+        }), // 5프레임
+        frameRate: 20, // 빠름
+        repeat: 0,
+      });
+    }
+
+    // 3. 이노스케 짐승의 호흡
+    if (!this.anims.exists("anim_inosuke_beast")) {
+      this.anims.create({
+        key: "anim_inosuke_beast",
+        frames: this.anims.generateFrameNumbers("attack_inosuke_beast", {
+          start: 0,
+          end: 4,
+        }), // 5프레임
+        frameRate: 15,
+        repeat: 0,
+      });
+    }
+
+    // 4. 카나오 꽃의 호흡
+    if (!this.anims.exists("anim_kanao_flower")) {
+      this.anims.create({
+        key: "anim_kanao_flower",
+        frames: this.anims.generateFrameNumbers("attack_kanao_flower", {
+          start: 0,
+          end: 12,
+        }),
+        frameRate: 10,
+        repeat: 0,
+      });
+    }
+
+    // 5. 까마귀 공격
+    if (!this.anims.exists("anim_crow")) {
+      this.anims.create({
+        key: "anim_crow",
+        frames: this.anims.generateFrameNumbers("attack_crow", {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 12,
+        repeat: 0,
+      });
+    }
+
+    // 6. 은(Kakushi) 투척
+    if (!this.anims.exists("anim_kakushi")) {
+      this.anims.create({
+        key: "anim_kakushi",
+        frames: this.anims.generateFrameNumbers("attack_kakushi_support", {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 10,
+        repeat: 0,
+      });
+    }
+
+    if (!this.anims.exists("anim_genya_gun")) {
+      this.anims.create({
+        key: "anim_genya_gun",
+        frames: this.anims.generateFrameNumbers("attack_genya_gun", {
+          start: 0,
+          end: 0,
+        }),
+        frameRate: 5,
+        repeat: 0,
+      });
+    }
+
+    if (!this.anims.exists("anim_aoi_support")) {
+      this.anims.create({
+        key: "anim_aoi_support",
+        frames: this.anims.generateFrameNumbers("attack_aoi_support", {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 15,
+        repeat: 0,
+      });
+    }
+
+    // 7. 우로코다키
+    if (!this.anims.exists("anim_urokodaki")) {
+      this.anims.create({
+        key: "anim_urokodaki",
+        frames: this.anims.generateFrameNumbers("attack_urokodaki", {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+
+    // 8. 쿠와지마 (젠이츠 스승)
+    if (!this.anims.exists("anim_jigoro")) {
+      this.anims.create({
+        key: "anim_jigoro",
+        frames: this.anims.generateFrameNumbers("attack_jigoro", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+
+    // 9. 하가네즈카 (칼갈이/분노)
+    if (!this.anims.exists("anim_haganezuka")) {
+      this.anims.create({
+        key: "anim_haganezuka",
+        frames: this.anims.generateFrameNumbers("attack_haganezuka", {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 10. 사비토
+    if (!this.anims.exists("anim_sabito")) {
+      this.anims.create({
+        key: "anim_sabito",
+        frames: this.anims.generateFrameNumbers("attack_sabito", {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 11. 네즈코 (발차기 등)
+    if (!this.anims.exists("anim_nezuko_box")) {
+      this.anims.create({
+        key: "anim_nezuko_box",
+        frames: this.anims.generateFrameNumbers("attack_nezuko_box", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 12. 유시로 (부적)
+    if (!this.anims.exists("anim_yushiro")) {
+      this.anims.create({
+        key: "anim_yushiro",
+        frames: this.anims.generateFrameNumbers("attack_yushiro", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 13. 무라타 (흐릿한 물의 호흡)
+    if (!this.anims.exists("anim_murata")) {
+      this.anims.create({
+        key: "anim_murata",
+        frames: this.anims.generateFrameNumbers("attack_murata", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 14. 기유 (잔잔한 물결)
+    if (!this.anims.exists("anim_giyu")) {
+      this.anims.create({
+        key: "anim_giyu",
+        frames: this.anims.generateFrameNumbers("attack_giyu", {
+          start: 0,
+          end: 5,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 15. 렌고쿠 (화염)
+    if (!this.anims.exists("anim_rengoku")) {
+      this.anims.create({
+        key: "anim_rengoku",
+        frames: this.anims.generateFrameNumbers("attack_rengoku", {
+          start: 0,
+          end: 29,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 16. 텐겐 (소리의 호흡 - 폭발적)
+    if (!this.anims.exists("anim_tengen")) {
+      this.anims.create({
+        key: "anim_tengen",
+        frames: this.anims.generateFrameNumbers("attack_tengen", {
+          start: 0,
+          end: 12,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 17. 시노부 (찌르기 - 매우 빠름)
+    if (!this.anims.exists("anim_shinobu")) {
+      this.anims.create({
+        key: "anim_shinobu",
+        frames: this.anims.generateFrameNumbers("attack_shinobu", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 18. 카나에 (꽃의 호흡)
+    if (!this.anims.exists("anim_kanae")) {
+      this.anims.create({
+        key: "anim_kanae",
+        frames: this.anims.generateFrameNumbers("attack_kanae", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 19. 무이치로 (안개)
+    if (!this.anims.exists("anim_muichiro")) {
+      this.anims.create({
+        key: "anim_muichiro",
+        frames: this.anims.generateFrameNumbers("attack_muichiro", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10, // 안개처럼 흐르듯
+        repeat: -1,
+      });
+    }
+
+    // 20. 미츠리 (사랑의 호흡 - 채찍처럼)
+    if (!this.anims.exists("anim_mitsuri")) {
+      this.anims.create({
+        key: "anim_mitsuri",
+        frames: this.anims.generateFrameNumbers("attack_mitsuri", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 21. 오바나이 (뱀)
+    if (!this.anims.exists("anim_obanai")) {
+      this.anims.create({
+        key: "anim_obanai",
+        frames: this.anims.generateFrameNumbers("attack_obanai", {
+          start: 0,
+          end: 5,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 22. 사네미 (바람)
+    if (!this.anims.exists("anim_sanemi")) {
+      this.anims.create({
+        key: "anim_sanemi",
+        frames: this.anims.generateFrameNumbers("attack_sanemi", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 23. 교메이 (바위/철퇴 - 묵직함)
+    if (!this.anims.exists("anim_gyomei")) {
+      this.anims.create({
+        key: "anim_gyomei",
+        frames: this.anims.generateFrameNumbers("attack_gyomei", {
+          start: 0,
+          end: 29,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 24. 타마요 (혈귀술)
+    if (!this.anims.exists("anim_tamayo")) {
+      this.anims.create({
+        key: "anim_tamayo",
+        frames: this.anims.generateFrameNumbers("attack_tamayo", {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // 25. 탄지로(히노카미)
+    if (!this.anims.exists("anim_tanjiro_sun")) {
+      this.anims.create({
+        key: "anim_tanjiro_sun",
+        frames: this.anims.generateFrameNumbers("attack_tanjiro_sun", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 26. 젠이츠(신속) - 매우 빠름
+    if (!this.anims.exists("anim_zenitsu_god")) {
+      this.anims.create({
+        key: "anim_zenitsu_god",
+        frames: this.anims.generateFrameNumbers("attack_zenitsu_god", {
+          start: 0,
+          end: 12,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 27. 네즈코(각성)
+    if (!this.anims.exists("anim_nezuko_awake")) {
+      this.anims.create({
+        key: "anim_nezuko_awake",
+        frames: this.anims.generateFrameNumbers("attack_nezuko_awake", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+    // 28. 기유(반점)
+    if (!this.anims.exists("anim_giyu_mark")) {
+      this.anims.create({
+        key: "anim_giyu_mark",
+        frames: this.anims.generateFrameNumbers("attack_giyu_mark", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+    // 29. 무이치로(반점)
+    if (!this.anims.exists("anim_muichiro_mark")) {
+      this.anims.create({
+        key: "anim_muichiro_mark",
+        frames: this.anims.generateFrameNumbers("attack_muichiro_mark", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 30. 타마요&유시로
+    if (!this.anims.exists("anim_tamayo_yushiro")) {
+      this.anims.create({
+        key: "anim_tamayo_yushiro",
+        frames: this.anims.generateFrameNumbers("attack_tamayo_yushiro", {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 31. 이노스케(각성)
+    if (!this.anims.exists("anim_inosuke_awake")) {
+      this.anims.create({
+        key: "anim_inosuke_awake",
+        frames: this.anims.generateFrameNumbers("attack_inosuke_awake", {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // === [Tier 6] 신화 ===
+
+    // 32. 탄지로(13형)
+    if (!this.anims.exists("anim_tanjiro_final")) {
+      this.anims.create({
+        key: "anim_tanjiro_final",
+        frames: this.anims.generateFrameNumbers("attack_tanjiro_final", {
+          start: 0,
+          end: 15,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 33. 교메이(반점)
+    if (!this.anims.exists("anim_gyomei_mark")) {
+      this.anims.create({
+        key: "anim_gyomei_mark",
+        frames: this.anims.generateFrameNumbers("attack_gyomei_mark", {
+          start: 0,
+          end: 17,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 34. 요리이치
+    if (!this.anims.exists("anim_yoriichi")) {
+      this.anims.create({
+        key: "anim_yoriichi",
+        frames: this.anims.generateFrameNumbers("attack_yoriichi", {
+          start: 0,
+          end: 9,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 35. 이노스케(산의 왕)
+    if (!this.anims.exists("anim_inosuke_king")) {
+      this.anims.create({
+        key: "anim_inosuke_king",
+        frames: this.anims.generateFrameNumbers("attack_inosuke_king", {
+          start: 0,
+          end: 5,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    // === [HIDDEN] 히든 ===
+
+    // 36. 요리이치 영식
+    if (!this.anims.exists("anim_yoriichi_zero")) {
+      this.anims.create({
+        key: "anim_yoriichi_zero",
+        frames: this.anims.generateFrameNumbers("attack_yoriichi_zero", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 25, // 난타
+        repeat: -1,
+      });
+    }
+    // 37. 코쿠시보
+    if (!this.anims.exists("anim_koku")) {
+      this.anims.create({
+        key: "anim_koku",
+        frames: this.anims.generateFrameNumbers("attack_koku", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 38. 탄지로(오니의 왕)
+    if (!this.anims.exists("anim_tanjiro_king")) {
+      this.anims.create({
+        key: "anim_tanjiro_king",
+        frames: this.anims.generateFrameNumbers("attack_tanjiro_king", {
+          start: 0,
+          end: 14,
+        }),
+        frameRate: 20,
+        repeat: -1,
+      });
+    }
+    // 39. 쌍둥이의 운명
+    if (!this.anims.exists("anim_twin_destiny")) {
+      this.anims.create({
+        key: "anim_twin_destiny",
+        frames: this.anims.generateFrameNumbers("attack_twin_destiny", {
+          start: 0,
+          end: 6,
+        }),
+        frameRate: 24,
+        repeat: -1,
+      });
+    }
+
+    // 배경 클릭 시 초기화
+    this.bg.on("pointerdown", () => {
+      this.rangeGraphics.clear();
+      this.statText.setText("유닛을 클릭하면 정보가 표시됩니다.");
+      this.recipeText.setVisible(false);
+      this.hoverText.setVisible(false);
+      this.selectedUnit = null;
+      this.btnSell.setVisible(false);
+    });
+    this.add.rectangle(0, 0, 1280, 720, 0x000000, 0.4).setOrigin(0);
+    const darkOverlay = this.add
+      .rectangle(0, 0, 1280, 720, 0x000000, 0.4)
+      .setOrigin(0)
+      .setInteractive();
+
+    // 2. 검은 막을 클릭했을 때 창 닫기 기능 연결
+    darkOverlay.on("pointerdown", () => {
+      // (1) 선택된 유닛 정보 및 사거리 지우기
+      this.rangeGraphics.clear();
+      this.statText.setText("유닛을 클릭하면 정보가 표시됩니다.");
+      this.hoverText.setVisible(false);
+
+      // (2) 선택 해제 및 판매 버튼 숨기기
+      this.selectedUnit = null;
+      this.btnSell.setVisible(false);
+
+      // (3) [중요] 조합법 창 닫기
+      if (this.recipeContainer) {
+        this.recipeContainer.setVisible(false);
+      }
+    });
+
+    this.mapCenter = { x: 900, y: 360 };
+    this.mapRadius = 300;
+    this.add
+      .circle(this.mapCenter.x, this.mapCenter.y, this.mapRadius)
+      .setStrokeStyle(4, 0x444444);
+
+    this.drawGrid();
+    this.createUI();
+
+    this.enemies = this.physics.add.group();
+    this.units = this.add.group();
+    this.bullets = this.physics.add.group();
+
+    this.timeEvent = this.time.addEvent({
+      delay: 1000,
+      callback: this.onSecondTick,
+      callbackScope: this,
+      loop: true,
+    });
+    this.spawnTimer = this.time.addEvent({
+      delay: GAME_CONFIG.spawnInterval,
+      callback: this.spawnEnemy,
+      callbackScope: this,
+      loop: true,
+    });
+
+    this.physics.add.overlap(
+      this.bullets,
+      this.enemies,
+      this.hitEnemy,
+      null,
+      this
+    );
+
+    // ============================================================
+    // 입력 핸들러 (Click / Drag 완벽 분리)
+    // ============================================================
+    this.input.off("dragstart");
+    this.input.off("drag");
+    this.input.off("dragend");
+
+    this.input.on("dragstart", (p, o) => {
+      if (this.isPaused || this.isGameOver) return;
+      try {
+        o.isDragging = true; // 드래그 시작 (공격 멈춤)
+        this.hoverText.setVisible(false);
+        // this.recipeText.setVisible(false);
+        if (this.recipeContainer) this.recipeContainer.setVisible(false);
+        this.children.bringToTop(o);
+        o.startX = o.x;
+        o.startY = o.y;
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    this.input.on("drag", (p, o, x, y) => {
+      if (this.isPaused || this.isGameOver) return;
+      o.x = x;
+      o.y = y;
+    });
+
+    this.input.on("dragend", (p, o) => {
+      if (this.isPaused || this.isGameOver) return;
+
+      // 드래그 끝 (공격 재개 가능)
+      o.isDragging = false;
+
+      try {
+        const dist = Phaser.Math.Distance.Between(o.startX, o.startY, o.x, o.y);
+        // 5픽셀 미만 움직임 = 클릭(선택)
+        if (dist < 5) {
+          o.x = o.startX;
+          o.y = o.startY;
+          this.selectUnit(o);
+        } else {
+          // 5픽셀 이상 움직임 = 드래그(이동/조합)
+          this.handleUnitDrop(o);
+        }
+      } catch (e) {
+        console.error("Drag Error:", e);
+        if (o.startX !== undefined) {
+          o.x = o.startX;
+          o.y = o.startY;
+        }
+      }
+    });
+  }
+
+  drawGrid() {
+    this.add.rectangle(
+      this.gridOffsetX +
+        (this.gridSize * this.cellSize) / 2 -
+        this.cellSize / 2,
+      this.gridOffsetY +
+        (this.gridSize * this.cellSize) / 2 -
+        this.cellSize / 2,
+      this.gridSize * this.cellSize + 20,
+      this.gridSize * this.cellSize + 20,
+      0x111111
+    );
+    for (let y = 0; y < this.gridSize; y++) {
+      for (let x = 0; x < this.gridSize; x++) {
+        const cx = this.gridOffsetX + x * this.cellSize;
+        const cy = this.gridOffsetY + y * this.cellSize;
+        this.add
+          .rectangle(cx, cy, this.cellSize - 4, this.cellSize - 4, 0x222222)
+          .setStrokeStyle(1, 0x555555);
+      }
+    }
+  }
+
+  createUI() {
+    // 상단 UI
+    // 골드 (왼쪽 상단)
+    this.txtGold = this.add
+      .text(60, 40, `GOLD: ${this.gold}`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "26px",
+        color: "#f1c40f",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(100);
+
+    // ----------------------------------------------------------------
+    // [상단 중앙] 1열 세로 정렬 (라운드 -> 시간 -> 혈귀)
+    // ----------------------------------------------------------------
+    const topCenterX = 550;
+
+    // (1) 라운드
+    this.txtRound = this.add
+      .text(topCenterX, 40, `ROUND: ${this.round}`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "20px",
+        color: "#fff",
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(100);
+
+    // (2) 시간 (라운드 아래)
+    this.txtTime = this.add
+      .text(topCenterX, 70, `TIME: ${this.currentTime}`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "32px",
+        color: "#00ff00",
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(100);
+
+    // (3) 남은 혈귀 (시간 아래)
+    this.txtEnemyCount = this.add
+      .text(topCenterX, 95, `남은 혈귀: 0 / ${GAME_CONFIG.maxEnemies}`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "16px",
+        color: "#aaa",
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(100);
+
+    // ----------------------------------------------------------------
+    // [왼쪽 하단] 유닛 정보 & 버튼들
+    // ----------------------------------------------------------------
+
+    // 유닛 정보창 (그리드 바로 아래 배치)
+    this.statText = this.add
+      .text(280, 540, "유닛을 클릭하면 정보가 표시됩니다.", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "18px",
+        color: "#ffffff",
+        backgroundColor: "#000000aa",
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(100);
+
+    // 유닛 판매 버튼
+    this.btnSell = this.add.container(380, 600).setVisible(false).setDepth(101); // 정보창 바로 아래
+
+    const sellBg = this.add
+      .rectangle(0, 0, 150, 40, 0xe74c3c)
+      .setInteractive({ useHandCursor: true });
+
+    this.txtSell = this.add
+      .text(0, 0, "판매 (+50G)", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "18px",
+        color: "#fff",
+      })
+      .setOrigin(0.5);
+
+    this.btnSell.add([sellBg, this.txtSell]);
+
+    // 판매 버튼 클릭 이벤트
+    sellBg.on("pointerdown", () => this.sellSelectedUnit());
+    sellBg.on("pointerover", () => sellBg.setFillStyle(0xc0392b));
+    sellBg.on("pointerout", () => sellBg.setFillStyle(0xe74c3c));
+
+    // 버튼 그룹 (소환, 일시정지) - 1열 세로 배치
+    // 왼쪽 구석(x=150) 쯤에 세로로 배치
+    const btnX = 150;
+
+    // (1) 소환 버튼
+    const btnSummon = this.add
+      .rectangle(btnX, 590, 200, 45, 0x3498db)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(btnX, 590, `유닛 소환 (${GAME_CONFIG.unitSummonCost}G)`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "22px",
+        color: "#2c0404",
+      })
+      .setOrigin(0.5);
+    btnSummon.on("pointerdown", () => this.summonUnit());
+
+    // (2) [기능] 레시피 북 버튼
+    const btnRecipe = this.add
+      .rectangle(btnX, 640, 200, 45, 0x8977ad)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(btnX, 640, "조합법 보기", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "#2c0404",
+      })
+      .setOrigin(0.5);
+    btnRecipe.on("pointerdown", () => this.toggleRecipePopup());
+
+    // (3) 일시정지 버튼
+    const btnPause = this.add
+      .rectangle(btnX, 690, 200, 45, 0x95a5a6)
+      .setInteractive({ useHandCursor: true });
+    this.txtPause = this.add
+      .text(btnX, 690, "일시 정지", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "#2c0404",
+      })
+      .setOrigin(0.5);
+    btnPause.on("pointerdown", () => this.togglePause());
+
+    // (4) 2배속 버튼 기능
+    const btnSpeed = this.add
+      .rectangle(370, 690, 200, 45, 0x95a5a6)
+      .setInteractive({ useHandCursor: true });
+
+    this.txtSpeed = this.add
+      .text(370, 690, "속도: 1x", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "0x000000",
+      })
+      .setOrigin(0.5);
+
+    btnSpeed.on("pointerdown", () => this.toggleSpeed());
+
+    this.rangeGraphics = this.add.graphics().setDepth(50);
+
+    this.recipeContainer = this.add
+      .container(0, 0)
+      .setDepth(9999)
+      .setVisible(false);
+
+    this.hoverText = this.add
+      .text(0, 0, "", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "16px",
+        backgroundColor: "#00000088",
+        padding: { x: 5, y: 5 },
+        color: "#ffffff",
+      })
+      .setOrigin(0.5, 1.5)
+      .setVisible(false)
+      .setDepth(200);
+
+    this.pauseOverlay = this.add
+      .rectangle(640, 360, 1280, 720, 0x000000, 0.7)
+      .setVisible(false)
+      .setDepth(9000);
+    this.pauseText = this.add
+      .text(640, 360, "PAUSED", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "64px",
+      })
+      .setOrigin(0.5)
+      .setVisible(false)
+      .setDepth(9001);
+
+    // 7. 배경 클릭 시 선택 해제 및 판매 버튼 숨기기 로직
+    this.bg.on("pointerdown", () => {
+      // (1) 그래픽 및 텍스트 초기화
+      this.rangeGraphics.clear();
+      this.statText.setText("유닛을 클릭하면 정보가 표시됩니다.");
+      // (2) 툴팁 숨기기
+      this.hoverText.setVisible(false);
+      // (3) [중요] 조합법 컨테이너 숨기기!
+      if (this.recipeContainer) {
+        this.recipeContainer.setVisible(false);
+      }
+      // (4) 선택 변수 비우기 & 판매 버튼 숨기기
+      this.selectedUnit = null;
+      this.btnSell.setVisible(false);
+    });
+    // 8. 레시피 팝업 미리 생성
+    this.createRecipePopup();
+  }
+
+  // [신규 기능] 1배속 <-> 2배속 토글
+  toggleSpeed() {
+    const targetSpeed = this.time.timeScale > 1 ? 1.0 : 2.0;
+    this.time.timeScale = targetSpeed;
+
+    // 2. 물리 엔진(Arcade) 시간 스케일도 맞춤 (총알 속도 등)
+    this.physics.world.timeScale = 1 / targetSpeed;
+    // 주의: Arcade Physics의 timeScale은 '1/배수'로 설정해야 빨라진다. (1/2 = 0.5가 2배속)
+
+    // 3. 텍스트 업데이트
+    this.txtSpeed.setText(`속도: ${targetSpeed}x`);
+    // 버튼 색상
+    if (targetSpeed === 2) {
+      this.txtSpeed.setColor("#ffff00");
+    } else {
+      this.txtSpeed.setColor("0x000000");
+    }
+  }
+
+  // 선택된 유닛 판매
+  sellSelectedUnit() {
+    if (!this.selectedUnit || !this.selectedUnit.active) return;
+
+    const unit = this.selectedUnit;
+    const sellPrice = unit.dataVal.tier * 50; // 판매 가격 계산
+
+    // 골드 증가
+    this.gold += sellPrice;
+    this.txtGold.setText(`GOLD: ${this.gold}`);
+
+    // 그리드 점유 해제
+    if (unit.gridX !== -1 && unit.gridY !== -1) {
+      this.gridState[unit.gridY][unit.gridX] = null;
+    }
+
+    // 돈 획득 텍스트 이펙트
+    const txt = this.add
+      .text(unit.x, unit.y, `+${sellPrice}G`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "#f1c40f",
+        stroke: "#000",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(500);
+
+    this.tweens.add({
+      targets: txt,
+      y: unit.y - 50,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => txt.destroy(),
+    });
+
+    // 유닛 제거
+    unit.destroy();
+
+    // UI 초기화
+    this.selectedUnit = null;
+    this.btnSell.setVisible(false);
+    this.rangeGraphics.clear();
+    this.statText.setText("유닛이 판매되었습니다.");
+    // this.recipeText.setVisible(false);
+    if (this.recipeContainer) this.recipeContainer.setVisible(false);
+  }
+
+  // 페이지 기능이 추가된 조합법 팝업
+  createRecipePopup() {
+    // 1. 컨테이너 위치: 그리드 중앙
+    this.recipePopup = this.add
+      .container(200, 250)
+      .setDepth(9000)
+      .setVisible(false);
+
+    // 2. 배경 (크기 유지)
+    const bg = this.add
+      .rectangle(0, 0, 400, 450, 0x000000, 0.9)
+      .setStrokeStyle(2, 0x9b59b6)
+      .setInteractive();
+
+    // 3. 제목
+    const title = this.add
+      .text(0, -200, "- 조합법 목록 -", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "22px",
+        color: "#f1c40f",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    // 4. 내용을 표시할 텍스트 객체 (처음엔 빈칸)
+    this.recipeContentText = this.add
+      .text(0, -160, "", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "15px", // 글자 크기 약간 축소
+        color: "#ffffff",
+        lineSpacing: 0, // 줄 간격 조정
+        align: "center",
+      })
+      .setOrigin(0.5, 0);
+
+    // 5. 페이지 번호 표시
+    this.pageText = this.add
+      .text(0, 180, "1 / 1", {
+        fontSize: "16px",
+        color: "#aaa",
+      })
+      .setOrigin(0.5);
+
+    // 6. [이전] [다음] 버튼 만들기
+    this.btnPrev = this.add
+      .text(-120, 180, "◀ 이전", {
+        fontSize: "18px",
+        color: "#f1c40f",
+        fontStyle: "bold",
+      })
+      .setInteractive({ useHandCursor: true })
+      .setOrigin(0.5);
+
+    this.btnNext = this.add
+      .text(120, 180, "다음 ▶", {
+        fontSize: "18px",
+        color: "#f1c40f",
+        fontStyle: "bold",
+      })
+      .setInteractive({ useHandCursor: true })
+      .setOrigin(0.5);
+
+    // 버튼 이벤트 연결
+    this.btnPrev.on("pointerdown", () => this.changeRecipePage(-1));
+    this.btnNext.on("pointerdown", () => this.changeRecipePage(1));
+
+    // 닫기 안내 (배경 클릭 시 닫힘)
+    bg.on("pointerdown", () => this.toggleRecipePopup());
+
+    // 팝업에 모두 담기
+    this.recipePopup.add([
+      bg,
+      title,
+      this.recipeContentText,
+      this.pageText,
+      this.btnPrev,
+      this.btnNext,
+    ]);
+
+    // 데이터 정렬 및 초기화
+    this.currentRecipePage = 0;
+    this.itemsPerPage = 6; // 한 페이지에 6개씩 보여주기 (박스 크기에 맞춰 조절)
+    this.sortedRecipes = [];
+
+    if (typeof RECIPES !== "undefined") {
+      this.sortedRecipes = [...RECIPES].sort((r1, r2) => {
+        const t1 = UNIT_DATA[r1.result]?.tier || 0;
+        const t2 = UNIT_DATA[r2.result]?.tier || 0;
+        return t1 - t2;
+      });
+    }
+
+    // 첫 페이지 그리기
+    this.showRecipePage();
+  }
+  // 페이지 변경 처리
+  changeRecipePage(delta) {
+    const maxPage =
+      Math.ceil(this.sortedRecipes.length / this.itemsPerPage) - 1;
+    let newPage = this.currentRecipePage + delta;
+
+    // 페이지 범위 체크
+    if (newPage < 0) newPage = 0;
+    if (newPage > maxPage) newPage = maxPage;
+
+    // 페이지가 바뀌었으면 갱신
+    if (newPage !== this.currentRecipePage) {
+      this.currentRecipePage = newPage;
+      this.showRecipePage();
+    }
+  }
+
+  // 현재 페이지 내용 그리기
+  showRecipePage() {
+    if (this.sortedRecipes.length === 0) {
+      this.recipeContentText.setText("데이터 없음");
+      return;
+    }
+
+    const start = this.currentRecipePage * this.itemsPerPage;
+    const end = start + this.itemsPerPage;
+    const pageItems = this.sortedRecipes.slice(start, end);
+
+    let contentStr = "";
+    pageItems.forEach((recipe) => {
+      if (recipe.hidden) return;
+
+      const nameA = UNIT_DATA[recipe.a].name;
+      const nameB = UNIT_DATA[recipe.b].name;
+      const resData = UNIT_DATA[recipe.result];
+
+      // 보기 좋게 포맷팅
+      contentStr += `[★${resData.tier}] ${resData.name}\n= ${nameA} + ${nameB}\n\n`;
+    });
+
+    // 텍스트 업데이트
+    this.recipeContentText.setText(contentStr);
+
+    // 페이지 번호 업데이트
+    const maxPage = Math.ceil(this.sortedRecipes.length / this.itemsPerPage);
+    this.pageText.setText(`${this.currentRecipePage + 1} / ${maxPage}`);
+
+    // 버튼 활성/비활성 시각적 처리
+    this.btnPrev.setAlpha(this.currentRecipePage === 0 ? 0.3 : 1);
+    this.btnNext.setAlpha(this.currentRecipePage === maxPage - 1 ? 0.3 : 1);
+  }
+
+  // [기능] 레시피 팝업 토글
+  toggleRecipePopup() {
+    const isVisible = this.recipePopup.visible;
+    this.recipePopup.setVisible(!isVisible);
+  }
+
+  onSecondTick() {
+    if (this.isPaused || this.isGameOver) return;
+    this.currentTime--;
+
+    // 남은 시간이 5초 이하가 되면 적 생성 타이머를 멈춤
+    if (this.currentTime <= 5) {
+      if (!this.spawnTimer.paused) {
+        this.spawnTimer.paused = true; // 타이머 일시 정지
+      }
+    } else {
+      // 시간이 넉넉할 땐 타이머가 계속 돌아야 함
+      if (this.spawnTimer.paused) {
+        this.spawnTimer.paused = false;
+      }
+    }
+
+    if (this.round % ENEMY_CONFIG.bossInterval === 0) {
+      this.txtTime.setColor("#ff0000");
+      this.bg.setTint(0xff5555); // 붉은색 틴트
+    } else {
+      this.txtTime.setColor("#00ff00");
+      this.bg.clearTint(); // 원래 색상 복구
+    }
+
+    this.txtTime.setText(`TIME: ${this.currentTime}`);
+
+    if (this.currentTime <= 0) this.handleRoundEnd();
+  }
+
+  // 데이터에 연결된 다른 이미지(컷신)를 띄우는 이펙트
+  showCombinationEffect(key, tier) {
+    const cx = 640;
+    const cy = 360;
+
+    // 1. 사용할 이미지 키 결정
+    // 기본값은 유닛 키(도트)지만, cutscene 데이터가 있으면 그걸 사용
+    let imageKey = key;
+    if (UNIT_DATA[key].cutscene) {
+      imageKey = UNIT_DATA[key].cutscene;
+    }
+
+    // 2. 배경 섬광
+    const flash = this.add
+      .rectangle(cx, cy, 1280, 720, 0xffffff)
+      .setDepth(6000)
+      .setAlpha(0);
+
+    // 3. 이미지 생성 (imageKey 사용)
+    const img = this.add
+      .sprite(cx, cy, imageKey)
+      .setDepth(6001)
+      .setScale(0)
+      .setAlpha(0)
+      .setOrigin(0.5); // 중심 기준
+
+    // 화면의 80% 영역(최대 크기 제한) 설정
+    const maxW = 1280 * 0.8;
+    const maxH = 720 * 0.8;
+    // 원본 이미지 크기 가져오기
+    const imgW = img.width;
+    const imgH = img.height;
+    // 가로 배율과 세로 배율 중 '더 작은 쪽'을 선택해야 비율 유지
+    const scaleX = maxW / imgW;
+    const scaleY = maxH / imgH;
+
+    // 최종 목표 크기 (너무 작으면 최소 1배는 유지하도록 설정 가능)
+    let finalScale = Math.min(scaleX, scaleY);
+    // 이미지가 너무 작아서 화면에 꽉 채우고 싶다면 아래 주석 해제
+    // if (finalScale < 1) finalScale = 0.9;
+
+    // 4. 텍스트 설정
+    let msg = "EVOLUTION!";
+    let color = "#ffffff";
+    if (tier === 4) {
+      msg = "EPIC COMBINATION!";
+      color = "#9b59b6";
+    } else if (tier === 5) {
+      msg = "LEGENDARY AWAKENING!";
+      color = "#e67e22";
+    } else if (tier === 6) {
+      msg = "GOD TIER!";
+      color = "#e74c3c";
+    }
+
+    const text = this.add
+      .text(cx, cy + 250, msg, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "48px",
+        color: color,
+        stroke: "#ffffff",
+        strokeThickness: 4,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(6001)
+      .setAlpha(0)
+      .setScale(0.5);
+
+    // === 애니메이션 ===
+    this.tweens.add({
+      targets: flash,
+      alpha: { from: 1, to: 0 },
+      duration: 500,
+      onStart: () => {
+        // 이미지 애니메이션: 0에서 계산된 finalScale까지 커짐
+        this.tweens.add({
+          targets: img,
+          scale: { from: 0, to: finalScale }, // 계산된 비율 적용!!
+          alpha: { from: 0, to: 1 },
+          duration: 800,
+          ease: "Back.out",
+        });
+
+        this.tweens.add({
+          targets: text,
+          scale: { from: 0.5, to: 1.2 },
+          alpha: 1,
+          duration: 600,
+          ease: "Back.out",
+          delay: 200,
+        });
+      },
+      onComplete: () => {
+        this.time.delayedCall(1400, () => {
+          this.tweens.add({
+            targets: [img, text],
+            alpha: 0,
+            scale: finalScale * 1.5, // 사라질 떼 크기조정
+            duration: 500,
+            onComplete: () => {
+              img.destroy();
+              text.destroy();
+              flash.destroy();
+            },
+          });
+        });
+      },
+    });
+  }
+
+  handleRoundEnd() {
+    this.round++;
+    this.currentTime = GAME_CONFIG.roundTime;
+    this.bossSpawned = false;
+    this.spawnTimer.paused = false;
+
+    // 텍스트 업데이트
+    this.txtRound.setText(`ROUND: ${this.round}`);
+    this.txtTime.setText(`TIME: ${this.currentTime}`);
+
+    // 보상 지급(벨런스 조정 시 수정)
+    const reward = 50 + this.round * 10;
+    this.gold += reward;
+    this.txtGold.setText(`GOLD: ${this.gold}`);
+
+    if (this.round % ENEMY_CONFIG.bossInterval === 0) {
+      // 현재 라운드에 맞는 보스 정보 찾기
+      let bossInfo = null;
+      let bossKey = "";
+
+      if (this.round === 10) {
+        bossKey = "boss_rui";
+        bossInfo = ENEMY_CONFIG.types.boss_rui;
+      } else if (this.round === 20) {
+        bossKey = "boss_enmu";
+        bossInfo = ENEMY_CONFIG.types.boss_enmu;
+      } else if (this.round === 30) {
+        bossKey = "boss_daki";
+        bossInfo = ENEMY_CONFIG.types.boss_daki;
+      } else if (this.round === 40) {
+        bossKey = "boss_akaza";
+        bossInfo = ENEMY_CONFIG.types.boss_akaza;
+      } else if (this.round === 50) {
+        bossKey = "boss_koku";
+        bossInfo = ENEMY_CONFIG.types.boss_koku;
+      } else if (this.round >= 60) {
+        bossKey = "boss_muzan";
+        bossInfo = ENEMY_CONFIG.types.boss_muzan;
+      }
+
+      if (bossInfo) {
+        const cutsceneKey = bossInfo.cutscene || null;
+        this.showBossCutscene(bossKey, bossInfo.name, cutsceneKey);
+        return;
+      }
+    }
+
+    // 알림 메시지
+    const notice = this.add
+      .text(640, 360, `ROUND ${this.round} START!`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "48px",
+        color: "#ffff00",
+        stroke: "#000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(500);
+
+    this.time.delayedCall(2000, () => notice.destroy());
+  }
+
+  spawnEnemy() {
+    if (this.isPaused || this.isGameOver) return;
+    if (this.currentTime <= 5) return; // 라운드 끝나기 5초 전엔 생성 중지
+
+    // 보스 라운드인지 체크 (10, 20, 30...)
+    const isBossRound = this.round % 10 === 0;
+    if (isBossRound && this.bossSpawned) {
+      return;
+    }
+
+    let key = "enemy_lower"; // 기본은 잡몹
+    let hp = this.round * 150; // 기본 체력은 라운드 비례
+    let moveSpeed = 20;
+
+    // [보스 등장 로직] 라운드별 보스 교체
+    if (isBossRound) {
+      this.bossSpawned = true;
+
+      moveSpeed = 15;
+
+      if (this.round === 10) {
+        key = "boss_rui";
+        hp = ENEMY_CONFIG.types.boss_rui.hpMult;
+      } else if (this.round === 20) {
+        key = "boss_enmu";
+        hp = ENEMY_CONFIG.types.boss_enmu.hpMult;
+      } else if (this.round === 30) {
+        key = "boss_daki";
+        hp = ENEMY_CONFIG.types.boss_daki.hpMult;
+      } else if (this.round === 40) {
+        key = "boss_akaza";
+        hp = ENEMY_CONFIG.types.boss_akaza.hpMult;
+      } else if (this.round === 50) {
+        key = "boss_koku";
+        hp = ENEMY_CONFIG.types.boss_koku.hpMult;
+      } else if (this.round >= 60) {
+        key = "boss_muzan";
+        hp = ENEMY_CONFIG.types.boss_muzan.hpMult;
+        moveSpeed = 10;
+      }
+    } else {
+      // 일반 라운드: 라운드가 높을수록 잡몹도 강해짐
+      hp = this.round * 200;
+    }
+
+    // 적 생성 위치 및 이동 속성
+    const startAngle = 0;
+    const orbitRadius = this.mapRadius - 20;
+    const startX = this.mapCenter.x + Math.cos(startAngle) * orbitRadius;
+    const startY = this.mapCenter.y + Math.sin(startAngle) * orbitRadius;
+
+    const enemy = this.enemies.create(startX, startY, key);
+
+    if (isBossRound) {
+      enemy.setDisplaySize(120, 140);
+      enemy.setTint(0xffffff);
+      enemy.body.setSize(10, 10);
+      enemy.isBoss = true;
+    } else {
+      enemy.setDisplaySize(80, 90);
+      enemy.body.setSize(10, 10);
+      enemy.body.setOffset(15, 17.5);
+      enemy.isBoss = false;
+    }
+
+    enemy.hp = hp;
+    enemy.maxHp = hp;
+    enemy.pathAngle = startAngle;
+    enemy.moveSpeed = moveSpeed;
+
+    // 몹 체력바
+    enemy.hpBar = this.add.graphics();
+    enemy.hpBar.setDepth(enemy.depth + 1); // 적보다 위에 표시
+  }
+
+  summonUnit() {
+    if (this.isPaused || this.isGameOver) return;
+    if (this.gold < GAME_CONFIG.unitSummonCost) return;
+
+    // 빈자리 찾기
+    let emptySlots = [];
+    for (let y = 0; y < this.gridSize; y++) {
+      for (let x = 0; x < this.gridSize; x++) {
+        if (this.gridState[y][x] === null) emptySlots.push({ x, y });
+      }
+    }
+
+    // 자리가 없으면 소환 불가 + 알림
+    if (emptySlots.length === 0) {
+      const fullText = this.add
+        .text(150, 600, "대기실이 꽉 찼습니다!", {
+          color: "#ff0000",
+          fontFamily: "Cafe24ClassicType",
+          fontSize: "14px",
+        })
+        .setOrigin(0.5);
+      this.time.delayedCall(1000, () => fullText.destroy());
+      return;
+    }
+
+    // 골드 차감
+    this.gold -= GAME_CONFIG.unitSummonCost;
+    this.txtGold.setText(`GOLD: ${this.gold}`);
+
+    // -----------------------------------------------------------
+    // [확률 뽑기 로직]
+    // 1~100 사이의 숫자를 뽑아서 티어 결정
+    // -----------------------------------------------------------
+    const chance = Phaser.Math.Between(1, 100);
+    let targetTier = 1;
+
+    if (chance <= 15) {
+      targetTier = 3; // 15% 확률 (희귀)
+    } else if (chance <= 35) {
+      targetTier = 2; // 35% 확률 (고급)
+    } else {
+      targetTier = 1; // 50% 확률 (일반)
+    }
+
+    const pool = Object.keys(UNIT_DATA).filter(
+      (k) => UNIT_DATA[k].tier === targetTier
+    );
+
+    const randomKey = Phaser.Utils.Array.GetRandom(pool);
+    const slot = Phaser.Utils.Array.GetRandom(emptySlots);
+
+    this.createUnitAt(slot.x, slot.y, randomKey);
+
+    // // 소환 이벤트 화면 출력
+    // this.showSummonEffect(randomKey, targetTier);
+
+    // 3티어 뽑으면 축하 이펙트 텍스트
+    if (targetTier === 3) {
+      const luckyText = this.add
+        .text(
+          slot.x * this.cellSize + this.gridOffsetX,
+          slot.y * this.cellSize + this.gridOffsetY,
+          "JACKPOT!!",
+          {
+            fontFamily: "Cafe24ClassicType",
+            fontSize: "12px",
+            color: "#ffff00",
+            stroke: "#ff0000",
+            strokeThickness: 2,
+          }
+        )
+        .setOrigin(0.5)
+        .setDepth(300);
+
+      this.tweens.add({
+        targets: luckyText,
+        y: luckyText.y - 50,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => luckyText.destroy(),
+      });
+    }
+  }
+
+  // [생성된 유닛 설정]
+  createUnitAt(gx, gy, key) {
+    const worldX = this.gridOffsetX + gx * this.cellSize;
+    const worldY = this.gridOffsetY + gy * this.cellSize;
+
+    // 유닛 생성
+    const unit = this.add
+      .sprite(worldX, worldY, key)
+      .setInteractive({ draggable: true });
+
+    unit.setDisplaySize(80, 85);
+    unit.unitKey = key;
+    unit.dataVal = UNIT_DATA[key];
+    unit.lastFired = 0;
+    unit.gridX = gx;
+    unit.gridY = gy;
+
+    // ==============================================================
+    // [핵심 수정] 마우스 오버 이벤트 (색상 로직 재확인)
+    // ==============================================================
+    unit.on("pointerover", () => {
+      // 1. 티어별 색상 코드 정의 (확실하게 지정)
+      let nameColor = "#ffffff"; // 텍스트용 (String)
+      let circleColor = 0xffffff; // 그래픽용 (Number)
+
+      switch (unit.dataVal.tier) {
+        case 1:
+          nameColor = "#bdc3c7"; // 회색
+          circleColor = 0xbdc3c7;
+          break;
+        case 2:
+          nameColor = "#3498db"; // 파랑
+          circleColor = 0x3498db;
+          break;
+        case 3:
+          nameColor = "#2ecc71"; // 초록
+          circleColor = 0x2ecc71;
+          break;
+        case 4:
+          nameColor = "#9b59b6"; // 보라
+          circleColor = 0x9b59b6;
+          break;
+        case 5:
+          nameColor = "#e67e22"; // 주황
+          circleColor = 0xe67e22;
+          break;
+        case 6:
+          nameColor = "#e74c3c"; // 빨강
+          circleColor = 0xe74c3c;
+          break;
+      }
+
+      // 2. 툴팁 텍스트 설정
+      const tierStr = "★".repeat(unit.dataVal.tier);
+      this.hoverText.setText(`${tierStr} ${unit.dataVal.name}`);
+
+      // 스타일 적용 (색상 변수 적용 확인)
+      this.hoverText.setStyle({
+        fontFamily: "Cafe24ClassicType",
+        color: nameColor,
+        stroke: "#000000",
+        strokeThickness: 4,
+        fontSize: "18px",
+        fontWeight: "bold",
+        backgroundColor: "#000000cc",
+        padding: { x: 8, y: 5 },
+      });
+
+      this.hoverText.setPosition(unit.x, unit.y - 40);
+      this.hoverText.setVisible(true);
+      this.hoverText.setDepth(9999); // 제일 위에 보이게
+
+      // 3. 유닛 선택 효과 (살짝 어둡게 -> 밝게 변경)
+      // 기존 0xdddddd(회색) 대신 0xffffff(원색)에 투명도를 주거나 밝기를 조절
+      unit.setTint(0xcccccc);
+
+      // 4. 사거리 원 그리기 (색상 적용)
+      this.rangeGraphics.clear();
+      this.rangeGraphics.fillStyle(circleColor, 0.15);
+      this.rangeGraphics.lineStyle(2, circleColor, 0.8);
+      this.rangeGraphics.fillCircle(unit.x, unit.y, unit.dataVal.range);
+      this.rangeGraphics.strokeCircle(unit.x, unit.y, unit.dataVal.range);
+    });
+
+    // Pointer Out (마우스 뗐을 때)
+    unit.on("pointerover", () => {
+      // 드래그 중일 땐 툴팁 표시 안 함
+      if (unit.isDragging) return;
+
+      // 1. 티어별 색상 코드 정의
+      let nameColor = "#ffffff";
+      let circleColor = 0xffffff;
+
+      // 데이터가 없을 경우를 대비한 안전장치
+      if (!unit.dataVal) return;
+
+      switch (unit.dataVal.tier) {
+        case 1:
+          nameColor = "#bdc3c7";
+          circleColor = 0xbdc3c7;
+          break;
+        case 2:
+          nameColor = "#3498db";
+          circleColor = 0x3498db;
+          break;
+        case 3:
+          nameColor = "#2ecc71";
+          circleColor = 0x2ecc71;
+          break;
+        case 4:
+          nameColor = "#9b59b6";
+          circleColor = 0x9b59b6;
+          break;
+        case 5:
+          nameColor = "#e67e22";
+          circleColor = 0xe67e22;
+          break;
+        case 6:
+          nameColor = "#e74c3c";
+          circleColor = 0xe74c3c;
+          break;
+        default:
+          nameColor = "#ffffff";
+          circleColor = 0xffffff;
+          break;
+      }
+
+      // 2. 툴팁 텍스트 설정
+      const tierStr = "★".repeat(unit.dataVal.tier);
+      this.hoverText.setText(`${tierStr} ${unit.dataVal.name}`);
+
+      // 스타일 적용
+      this.hoverText.setStyle({
+        fontFamily: "Cafe24ClassicType",
+        color: nameColor,
+        stroke: "#000000",
+        strokeThickness: 4,
+        fontSize: "18px",
+        fontStyle: "bold",
+        backgroundColor: "#000000cc",
+        padding: { x: 8, y: 5 },
+      });
+
+      // 위치 잡기 (유닛 머리 위)
+      this.hoverText.setPosition(unit.x, unit.y - 50);
+      this.hoverText.setVisible(true);
+      this.hoverText.setDepth(9999);
+
+      // 3. 유닛 선택 효과
+      unit.setTint(0xcccccc);
+
+      // 4. 사거리 원 그리기
+      this.rangeGraphics.clear();
+      this.rangeGraphics.fillStyle(circleColor, 0.15);
+      this.rangeGraphics.lineStyle(2, circleColor, 0.8);
+      this.rangeGraphics.fillCircle(unit.x, unit.y, unit.dataVal.range);
+      this.rangeGraphics.strokeCircle(unit.x, unit.y, unit.dataVal.range);
+    });
+
+    this.gridState[gy][gx] = unit;
+    this.units.add(unit);
+  }
+
+  // 유닛 선택 시 하단 정보창에 색상 적용
+  selectUnit(unit) {
+    // 1. 현재 선택된 유닛 저장 및 판매 버튼 활성화
+    this.selectedUnit = unit;
+    const sellPrice = unit.dataVal.tier * 50;
+    this.txtSell.setText(`판매 (+${sellPrice}G)`);
+    this.btnSell.setVisible(true);
+
+    // 2. 티어별 색상 코드 결정
+    let colorCode = "#ffffff"; // 기본 흰색
+    let hexColor = 0xffffff; // 사거리 표시용 hex 코드
+
+    switch (unit.dataVal.tier) {
+      case 1:
+        colorCode = "#bdc3c7";
+        hexColor = 0xbdc3c7;
+        break;
+      case 2:
+        colorCode = "#3498db";
+        hexColor = 0x3498db;
+        break;
+      case 3:
+        colorCode = "#2ecc71";
+        hexColor = 0x2ecc71;
+        break;
+      case 4:
+        colorCode = "#9b59b6";
+        hexColor = 0x9b59b6;
+        break;
+      case 5:
+        colorCode = "#e67e22";
+        hexColor = 0xe67e22;
+        break;
+      case 6:
+        colorCode = "#e74c3c";
+        hexColor = 0xe74c3c;
+        break;
+    }
+
+    // 3. 사거리 표시
+    this.rangeGraphics.clear();
+    this.rangeGraphics.fillStyle(hexColor, 0.2);
+    this.rangeGraphics.lineStyle(2, hexColor, 0.8);
+    this.rangeGraphics.fillCircle(unit.x, unit.y, unit.dataVal.range);
+    this.rangeGraphics.strokeCircle(unit.x, unit.y, unit.dataVal.range);
+
+    // 4. 하단 정보창 텍스트 업데이트 (색상 적용)
+    const atkSpeedSec = (unit.dataVal.speed / 1000).toFixed(1);
+    const stars = "★".repeat(unit.dataVal.tier);
+
+    // 텍스트 내용 설정
+    this.statText.setText(
+      `[${stars}${unit.dataVal.name}]   공격력: ${unit.dataVal.dmg}   공속: ${atkSpeedSec}s   사거리: ${unit.dataVal.range}`
+    );
+
+    // 텍스트 스타일(색상) 적용
+    this.statText.setStyle({
+      fontFamily: "Cafe24ClassicType",
+      fontSize: "18px",
+      color: colorCode, // 티어별 색상 적용
+      backgroundColor: "#000000aa",
+      padding: { x: 10, y: 5 },
+    });
+
+    // 5. 조합법 힌트 표시
+    // 조합법 힌트 표시 (컬러 적용 버전)
+    const myKey = unit.unitKey;
+    const myRecipes = RECIPES.filter(
+      (r) => (r.a === myKey || r.b === myKey) && !r.hidden
+    );
+
+    // 1) 기존 내용 싹 비우기
+    this.recipeContainer.removeAll(true);
+    this.recipeContainer.setVisible(true);
+
+    // 2) 위치 잡기 (유닛 오른쪽)
+    // 화면 오른쪽 끝이라 잘린다면 x좌표를 unit.x - 200 등으로 조정 필요
+    let startX = unit.x + 60;
+    let startY = unit.y - 50;
+    // 화면 밖으로 나가는 것 방지 (간단 보정)
+    if (startX > 1000) startX = unit.x - 250;
+    this.recipeContainer.setPosition(startX, startY);
+
+    // --- [스타일 설정 변수] ---
+    const bgOpacity = 0.5; // 배경 투명도
+    const bgWidth = 280; // 박스 가로 길이
+    const titleSize = "18px"; // 제목 폰트 크기
+    const bodySize = "16px"; // 내용 폰트 크기
+    const lineHeight = 22; // 줄 간격
+    const padding = 10; // 박스 내부 여백
+    // -----------------------------------------------------
+
+    // 배경 박스 생성
+    const bgGraphics = this.add.graphics();
+    bgGraphics.fillStyle(0x000000, bgOpacity);
+
+    // 박스 높이 자동 계산
+    const boxHeight =
+      40 + (myRecipes.length > 0 ? myRecipes.length * lineHeight : 30);
+
+    bgGraphics.fillRoundedRect(-padding, -padding, bgWidth, boxHeight, 10);
+    this.recipeContainer.add(bgGraphics);
+
+    // 제목
+    const titleText = this.add.text(0, 0, `[ ${unit.dataVal.name} 조합법 ]`, {
+      fontFamily: "Cafe24ClassicType",
+      fontSize: titleSize,
+      color: "#ffffff",
+      fontStyle: "bold",
+    });
+    this.recipeContainer.add(titleText);
+
+    let currentY = 30; // 첫 번째 줄 Y 위치
+
+    if (myRecipes.length === 0) {
+      const noRecipe = this.add.text(0, currentY, "상위 조합식이 없습니다.", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: bodySize,
+        color: "#aaaaaa",
+      });
+      this.recipeContainer.add(noRecipe);
+    } else {
+      myRecipes.forEach((r) => {
+        let currentX = 0;
+
+        const partnerKey = r.a === myKey ? r.b : r.a;
+        const partnerData = UNIT_DATA[partnerKey];
+        const resultData = UNIT_DATA[r.result];
+
+        // 1. "+ "
+        const plus = this.add.text(currentX, currentY, "+ ", {
+          fontFamily: "Cafe24ClassicType",
+          fontSize: bodySize,
+          color: "#ffffff",
+        });
+        this.recipeContainer.add(plus);
+        currentX += plus.width;
+
+        // 2. 재료 이름
+        const matName = this.add.text(currentX, currentY, partnerData.name, {
+          fontFamily: "Cafe24ClassicType",
+          fontSize: bodySize,
+          color: this.getTierColor(partnerData.tier),
+          fontStyle: "bold",
+        });
+        this.recipeContainer.add(matName);
+        currentX += matName.width;
+
+        // 3. " = "
+        const equal = this.add.text(currentX, currentY, " = ", {
+          fontFamily: "Cafe24ClassicType",
+          fontSize: bodySize,
+          color: "#ffffff",
+        });
+        this.recipeContainer.add(equal);
+        currentX += equal.width;
+
+        // 4. 결과 이름
+        const resName = this.add.text(currentX, currentY, resultData.name, {
+          fontFamily: "Cafe24ClassicType",
+          fontSize: bodySize,
+          color: this.getTierColor(resultData.tier),
+          fontStyle: "bold",
+        });
+        this.recipeContainer.add(resName);
+
+        currentY += lineHeight;
+      });
+    }
+  }
+
+  // handleUnitDrop 함수 그리드 밖의 유닛
+  handleUnitDrop(unit) {
+    // 1. 전투 필드(원 안쪽) 배치 로직
+    const distToCenter = Phaser.Math.Distance.Between(
+      unit.x,
+      unit.y,
+      this.mapCenter.x,
+      this.mapCenter.y
+    );
+
+    if (distToCenter < this.mapRadius - 40) {
+      // 겹침 방지: 필드에 있는 다른 유닛들과 거리 체크
+      let isOverlapping = false;
+      this.units.children.iterate((otherUnit) => {
+        if (unit === otherUnit) return;
+        if (!otherUnit.active) return;
+
+        const dist = Phaser.Math.Distance.Between(
+          unit.x,
+          unit.y,
+          otherUnit.x,
+          otherUnit.y
+        );
+        if (dist < 40) isOverlapping = true;
+      });
+
+      if (isOverlapping) {
+        this.returnUnitToOriginalPos(unit);
+        this.showWarningText(unit.x, unit.y, "겹침 불가!");
+        return;
+      }
+
+      // 기존 그리드 자리 비우기
+      if (unit.gridX !== -1 && this.gridState[unit.gridY]) {
+        this.gridState[unit.gridY][unit.gridX] = null;
+      }
+
+      // 필드 배치 상태로 변경
+      unit.gridX = -1;
+      unit.gridY = -1;
+      this.selectUnit(unit);
+      return;
+    }
+
+    // ----------------------------------------------------------------
+    // 2. 대기실(그리드) 배치 로직 (★버그 수정 핵심 구간★)
+    // ----------------------------------------------------------------
+
+    // 드롭된 위치의 그리드 좌표 계산
+    const dropGX = Math.floor(
+      (unit.x - this.gridOffsetX + this.cellSize / 2) / this.cellSize
+    );
+    const dropGY = Math.floor(
+      (unit.y - this.gridOffsetY + this.cellSize / 2) / this.cellSize
+    );
+
+    // 그리드 밖으로 나갔으면 원위치
+    if (
+      dropGX < 0 ||
+      dropGX >= this.gridSize ||
+      dropGY < 0 ||
+      dropGY >= this.gridSize
+    ) {
+      this.returnUnitToOriginalPos(unit);
+      return;
+    }
+
+    // 데이터(gridState)와 실제 유닛(Physics) 이중 체크
+    // 1차: 데이터상에 유닛이 있는가?
+    let targetUnit = this.gridState[dropGY][dropGX];
+
+    // 2차: 데이터는 비어있다는데(null), 실제로 유령 유닛이 그 자리에 있는가? (버그 방지)
+    if (targetUnit === null) {
+      const ghostUnit = this.units
+        .getChildren()
+        .find(
+          (u) =>
+            u !== unit && u.active && u.gridX === dropGX && u.gridY === dropGY
+        );
+
+      if (ghostUnit) {
+        // 데이터 복구 및 타겟으로 설정
+        console.log("유령 유닛 감지! 데이터 복구됨:", dropGX, dropGY);
+        this.gridState[dropGY][dropGX] = ghostUnit;
+        targetUnit = ghostUnit;
+      }
+    }
+
+    // --- 판정 로직 ---
+    if (targetUnit === null) {
+      // (A) 진짜 빈칸이면 -> 이동
+      if (unit.gridX !== -1) {
+        this.gridState[unit.gridY][unit.gridX] = null; // 옛날 자리 비움
+      }
+      this.gridState[dropGY][dropGX] = unit; // 새 자리 차지
+
+      unit.gridX = dropGX;
+      unit.gridY = dropGY;
+      // 위치를 그리드 중앙에 딱 맞춤 (Snap)
+      unit.x = this.gridOffsetX + dropGX * this.cellSize;
+      unit.y = this.gridOffsetY + dropGY * this.cellSize;
+
+      this.selectUnit(unit);
+    } else if (targetUnit !== unit) {
+      // (B) 다른 유닛이 있으면 -> 합치기 시도
+      this.tryCombine(unit, targetUnit);
+    } else {
+      // (C) 자기 자신 위면 -> 제자리 (Snap)
+      this.returnUnitToOriginalPos(unit);
+    }
+  }
+
+  // (편의 기능) 경고 텍스트 띄우기 함수 추가
+  showWarningText(x, y, msg) {
+    const warning = this.add
+      .text(x, y - 30, msg, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "14px",
+        color: "#ff0000",
+        stroke: "#000",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(9999);
+
+    this.tweens.add({
+      targets: warning,
+      y: warning.y - 20,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => warning.destroy(),
+    });
+  }
+
+  // (도우미 함수) 원래 자리로 되돌리기
+  returnUnitToOriginalPos(unit) {
+    // 만약 그리드 출신이면 그리드 좌표로
+    if (unit.gridX !== -1) {
+      unit.x = this.gridOffsetX + unit.gridX * this.cellSize;
+      unit.y = this.gridOffsetY + unit.gridY * this.cellSize;
+    } else {
+      // 이미 필드에 나와있던 녀석이면 드래그 시작 위치로
+      unit.x = unit.startX;
+      unit.y = unit.startY;
+    }
+  }
+
+  tryCombine(unitA, unitB) {
+    let success = false;
+    let newKey = null;
+
+    // 1. [우선순위] 레시피(족보)가 있는지 확인
+    const recipe = RECIPES.find(
+      (r) =>
+        (r.a === unitA.unitKey && r.b === unitB.unitKey) ||
+        (r.b === unitA.unitKey && r.a === unitB.unitKey)
+    );
+
+    if (recipe) {
+      newKey = recipe.result;
+      success = true;
+    }
+
+    if (success) {
+      // 툴팁 등 UI 정리
+      this.hoverText.setVisible(false);
+      // this.recipeText.setVisible(false);
+      if (this.recipeContainer) this.recipeContainer.setVisible(false);
+      this.rangeGraphics.clear();
+
+      // 기존 유닛 삭제 및 그리드 비우기
+      this.gridState[unitA.gridY][unitA.gridX] = null;
+      this.gridState[unitB.gridY][unitB.gridX] = null;
+      unitA.destroy();
+      unitB.destroy();
+
+      // 새 유닛 생성
+      this.createUnitAt(unitB.gridX, unitB.gridY, newKey);
+
+      // ========================================================
+      // [추가됨] 4티어 이상이면 조합 이펙트 발동!
+      // ========================================================
+      const newData = UNIT_DATA[newKey];
+      if (newData && newData.tier >= 4) {
+        this.showCombinationEffect(newKey, newData.tier);
+      }
+    } else {
+      // 실패 시 원위치
+      unitA.x = unitA.startX;
+      unitA.y = unitA.startY;
+    }
+  }
+
+  unitAttack(unit) {
+    if (unit.isDragging) return; // 드래그 중 공격 중지 로직
+
+    const now = this.time.now;
+
+    const timeScale = this.time.timeScale;
+    const adjustedSpeed = unit.dataVal.speed / timeScale;
+
+    if (now - unit.lastFired < adjustedSpeed) return;
+    let closest = null;
+    let minDist = unit.dataVal.range;
+    this.enemies.children.iterate((e) => {
+      if (!e.active) return;
+      const dist = Phaser.Math.Distance.Between(unit.x, unit.y, e.x, e.y);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = e;
+      }
+    });
+    if (closest) {
+      unit.lastFired = now;
+      this.fireBullet(unit, closest);
+    }
+  }
+
+  // [유닛 타입에 따라 투사체 키(Key)와 애니메이션 결정]
+  fireBullet(unit, target) {
+    let bulletKey = "bullet"; // 기본값 (흰 점)
+    let animKey = null;
+    // 빠른 총알이지만 천천히 회전하는 효과: bulletSpeed=1500, animFrameRate=8
+    // 느린 총알이지만 빠르게 깜빡이는 효과: bulletSpeed=500, animFrameRate=20
+    let bulletSpeed = 500; // [공격모션이 날아가는 속도]
+    let rotationOffset = 0;
+    let animFrameRate = 10; // [애니메이션 기본 속도]
+
+    const type = unit.dataVal.type;
+
+    // === [유닛 타입별 리소스 분기] ===
+    if (type === "slayer_basic") {
+      bulletKey = "attack_slayer_basic"; // 스프라이트 이미지 키
+      animKey = "anim_slayer_basic"; // 재생할 애니메이션 키
+      animFrameRate = 10; // [애니메이션 속도(숫자가 클수록 빠르다!)]
+      bulletSpeed = 500;
+
+      // [중요] 이미지가 세로로 길쭉한(32x175) 형태라면
+      // 날아가는 방향(오른쪽=0도)에 맞추기 위해 90도 회전이 필요할 수 있다.
+      // 만약 이미지가 위를 보고 그려졌다면 Math.PI / 2 (90도)를 더해야 합니다.
+      // rotationOffset = Math.PI / 2;
+    } else if (type === "tanjiro_water") {
+      bulletKey = "attack_tanjiro_water";
+      animKey = "anim_tanjiro_water";
+      animFrameRate = 15;
+      bulletSpeed = 600;
+      // rotationOffset = Math.PI / 2; // 이미지가 세로면 필요, 가로면 0
+    } else if (type === "zenitsu_thunder") {
+      bulletKey = "attack_zenitsu_thunder";
+      animKey = "anim_zenitsu_thunder";
+      animFrameRate = 20;
+      bulletSpeed = 1200;
+    } else if (type === "inosuke_beast") {
+      bulletKey = "attack_inosuke_beast";
+      animKey = "anim_inosuke_beast";
+      animFrameRate = 15;
+      bulletSpeed = 700;
+    } else if (type === "kanao_flower") {
+      bulletKey = "attack_kanao_flower";
+      animKey = "anim_kanao_flower";
+      animFrameRate = 20;
+      bulletSpeed = 500;
+    } else if (type === "crow_attack") {
+      bulletKey = "attack_crow";
+      animKey = "anim_crow";
+      animFrameRate = 12;
+      bulletSpeed = 900;
+    } else if (type === "kakushi_support") {
+      bulletKey = "attack_kakushi_support";
+      animKey = "anim_kakushi";
+      animFrameRate = 10;
+      bulletSpeed = 400;
+    } else if (type === "genya_gun") {
+      bulletKey = "attack_genya_gun";
+      animKey = "anim_genya_gun";
+      animFrameRate = 10;
+      bulletSpeed = 1300;
+    } else if (type === "aoi_support") {
+      bulletKey = "attack_aoi_support";
+      animKey = "anim_aoi_support";
+      animFrameRate = 10;
+      bulletSpeed = 400;
+    }
+    //===== 3티어 시작 =====
+    else if (type === "urokodaki_water") {
+      bulletKey = "attack_urokodaki";
+      animKey = "anim_urokodaki";
+      animFrameRate = 15;
+      bulletSpeed = 600;
+    } else if (type === "jigoro_thunder") {
+      bulletKey = "attack_jigoro";
+      animKey = "anim_jigoro";
+      animFrameRate = 15;
+      bulletSpeed = 1000;
+    } else if (type === "haganezuka_angry") {
+      bulletKey = "attack_haganezuka";
+      animKey = "anim_haganezuka";
+      animFrameRate = 12;
+      bulletSpeed = 500;
+    } else if (type === "sabito_spirit") {
+      bulletKey = "attack_sabito";
+      animKey = "anim_sabito";
+      animFrameRate = 15;
+      bulletSpeed = 700;
+    } else if (type === "nezuko_kick") {
+      bulletKey = "attack_nezuko_box";
+      animKey = "anim_nezuko_box";
+      animFrameRate = 8;
+      bulletSpeed = 500;
+    } else if (type === "yushiro_paper") {
+      bulletKey = "attack_yushiro";
+      animKey = "anim_yushiro";
+      animFrameRate = 10;
+      bulletSpeed = 700;
+    } else if (type === "murata_water") {
+      bulletKey = "attack_murata";
+      animKey = "anim_murata";
+      animFrameRate = 10;
+      bulletSpeed = 500;
+    }
+    // ===== 4티어 시작 ======
+    else if (type === "giyu_water") {
+      bulletKey = "attack_giyu";
+      animKey = "anim_giyu";
+      animFrameRate = 12;
+      bulletSpeed = 500;
+    } else if (type === "rengoku_fire") {
+      bulletKey = "attack_rengoku";
+      animKey = "anim_rengoku";
+      animFrameRate = 10;
+      bulletSpeed = 500;
+    } else if (type === "tengen_sound") {
+      bulletKey = "attack_tengen";
+      animKey = "anim_tengen";
+      animFrameRate = 10;
+      bulletSpeed = 800;
+    } else if (type === "shinobu_poison") {
+      bulletKey = "attack_shinobu";
+      animKey = "anim_shinobu";
+      animFrameRate = 10;
+      bulletSpeed = 500;
+    } else if (type === "kanae_flower") {
+      bulletKey = "attack_kanae";
+      animKey = "anim_kanae";
+      animFrameRate = 10;
+      bulletSpeed = 400;
+    } else if (type === "muichiro_mist") {
+      bulletKey = "attack_muichiro";
+      animKey = "anim_muichiro";
+      animFrameRate = 10;
+      bulletSpeed = 700;
+    } else if (type === "mitsuri_love") {
+      bulletKey = "attack_mitsuri";
+      animKey = "anim_mitsuri";
+      animFrameRate = 10;
+      bulletSpeed = 500;
+    } else if (type === "obanai_snake") {
+      bulletKey = "attack_obanai";
+      animKey = "anim_obanai";
+      animFrameRate = 8;
+      bulletSpeed = 750;
+    } else if (type === "sanemi_wind") {
+      bulletKey = "attack_sanemi";
+      animKey = "anim_sanemi";
+      animFrameRate = 10;
+      bulletSpeed = 750;
+    } else if (type === "gyomei_stone") {
+      bulletKey = "attack_gyomei";
+      animKey = "anim_gyomei";
+      animFrameRate = 10;
+      bulletSpeed = 600;
+    } else if (type === "tamayo_blood") {
+      bulletKey = "attack_tamayo";
+      animKey = "anim_tamayo";
+      animFrameRate = 10;
+      bulletSpeed = 750;
+    }
+    // ===== 5티어 시작 ======
+    else if (type === "tanjiro_sun") {
+      bulletKey = "attack_tanjiro_sun";
+      animKey = "anim_tanjiro_sun";
+      animFrameRate = 10;
+      bulletSpeed = 500;
+    } else if (type === "zenitsu_god") {
+      bulletKey = "attack_zenitsu_god";
+      animKey = "anim_zenitsu_god";
+      animFrameRate = 10;
+      bulletSpeed = 900;
+    } else if (type === "nezuko_blood_art") {
+      bulletKey = "attack_nezuko_awake";
+      animKey = "anim_nezuko_awake";
+      animFrameRate = 12;
+      bulletSpeed = 500;
+    } else if (type === "giyu_mark_water") {
+      bulletKey = "attack_giyu_mark";
+      animKey = "anim_giyu_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "muichiro_mark_mist") {
+      bulletKey = "attack_muichiro_mark";
+      animKey = "anim_muichiro_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "tamayo_yushiro_combo") {
+      bulletKey = "attack_tamayo_yushiro";
+      animKey = "anim_tamayo_yushiro";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "inosuke_awake_beast") {
+      bulletKey = "attack_inosuke_awake";
+      animKey = "anim_inosuke_awake";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+
+    // [Tier 6] 신화
+    else if (type === "tanjiro_13th") {
+      bulletKey = "attack_tanjiro_final";
+      animKey = "anim_tanjiro_final";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "gyomei_mark_stone") {
+      bulletKey = "attack_gyomei_mark";
+      animKey = "anim_gyomei_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "yoriichi_sun") {
+      bulletKey = "attack_yoriichi";
+      animKey = "anim_yoriichi";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "inosuke_king_beast") {
+      bulletKey = "attack_inosuke_king";
+      animKey = "anim_inosuke_king";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+
+      // [HIDDEN] 히든
+    } else if (type === "yoriichi_doll") {
+      bulletKey = "attack_yoriichi_zero";
+      animKey = "anim_yoriichi_zero";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "kokushibo_moon") {
+      bulletKey = "attack_koku";
+      animKey = "anim_koku";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "tanjiro_demon_king") {
+      bulletKey = "attack_tanjiro_king";
+      animKey = "anim_tanjiro_king";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    } else if (type === "twin_destiny_combo") {
+      bulletKey = "attack_twin_destiny";
+      animKey = "anim_twin_destiny";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+
+    // 2. 투사체 생성
+    const b = this.bullets.create(unit.x, unit.y, bulletKey);
+
+    // 2-1. 투사체 크기 (티어별 직접 지정)
+    let scaleRatio = 1.0;
+
+    switch (unit.dataVal.tier) {
+      case 1:
+        scaleRatio = 1.5;
+        break;
+      case 2:
+        scaleRatio = 2.4;
+        break;
+      case 3:
+        scaleRatio = 2.7;
+        break;
+      case 4:
+        scaleRatio = 4.5;
+        break;
+      case 5:
+        scaleRatio = 5.0;
+        break;
+      case 6:
+        scaleRatio = 5.5;
+        break;
+      default:
+        scaleRatio = 1.5;
+        break;
+    }
+
+    b.setScale(scaleRatio);
+
+    // 투사체 충돌 이미지크기 설정!
+    b.body.setSize(10, 10);
+    b.body.setOffset((b.width - 10) / 2, (b.height - 10) / 2);
+
+    // 3. 애니메이션 재생 (키가 있다면)
+    if (animKey) {
+      b.play({ key: animKey, frameRate: animFrameRate, repeat: -1 }); // repeat: 0 = 한 번만 재생
+    }
+
+    // 4. 데이터 주입
+    b.target = target;
+    b.damage = unit.dataVal.dmg;
+    b.isCritical = Math.random() < 0.1;
+    b.speed = bulletSpeed;
+    b.savedFrameRate = animFrameRate;
+
+    // 5. 시점에 적을 바라보게 회전(애니메이션이 회전!)
+    const angle = Phaser.Math.Angle.Between(unit.x, unit.y, target.x, target.y);
+    b.setRotation(angle + rotationOffset);
+
+    this.physics.velocityFromRotation(angle, bulletSpeed, b.body.velocity);
+  }
+
+  updateBullets() {
+    this.bullets.children.iterate((b) => {
+      // 활성 상태가 아니거나, 이미 적에게 맞아서 멈춘(body.enable false) 총알은 이동 로직 건너뜀
+      if (!b || !b.active || !b.body.enable) return;
+
+      // 목표가 사라지거나 죽었으면 총알도 삭제
+      if (!b.target || !b.target.active || b.target.hp <= 0) {
+        b.destroy();
+        return;
+      }
+
+      // [유도 기능 로직]
+      // 현재 총알 위치에서 목표 위치까지의 각도를 계산 후 이동
+      const angle = Phaser.Math.Angle.Between(b.x, b.y, b.target.x, b.target.y);
+      this.physics.velocityFromRotation(angle, b.speed, b.body.velocity);
+
+      // 투사체 머리가 적을 향하도록 이미지 회전
+      // b.setRotation(angle + (Math.PI / 2)); // 이미지 방향에 따라 +90도 필요할 수 있음
+      b.setRotation(angle);
+    });
+  }
+
+  hitEnemy(b, e) {
+    // 이미 맞았거나(active false), 물리 엔진이 꺼진(충돌 처리된) 총알은 무시
+    if (!b.active || !e.active || !b.body.enable) return;
+
+    b.body.enable = false;
+    b.body.setVelocity(0, 0);
+
+    let dmg = b.damage * (b.isCritical ? 2 : 1);
+    e.hp -= dmg;
+    e.setTint(0xff0000);
+    this.time.delayedCall(100, () => e.clearTint());
+
+    if (e.hp <= 0) {
+      if (e.hpBar) e.hpBar.destroy();
+      e.destroy();
+
+      // [★ 골드 보상 로직 업데이트 ★]
+      let reward = 0;
+
+      if (e.isBoss) {
+        reward = 1000;
+
+        // 보스 처치 텍스트 이펙트 (크고 화려하게)
+        this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
+      } else {
+        reward = 10;
+
+        // 2. 잡몹: 라운드가 오를수록 돈 더 줌
+        // 기본 5원 + (라운드 / 4) 만큼 추가
+        // + Math.floor(this.round / 2);
+
+        // 최대치 제한
+        // if (reward > 10) reward = 10;
+
+        // 텍스트 이펙트 (작게)
+        // this.showGoldEffect(e.x, e.y, `+${reward}G`, "#f1c40f", 16);
+      }
+
+      this.gold += reward;
+      this.txtGold.setText(`GOLD: ${this.gold}`);
+    }
+
+    // 애니메이션이 재생 중이라면 끝날 때까지 기다림
+    if (b.anims.currentAnim) {
+      b.setDepth(e.depth + 1);
+      b.play({
+        key: b.anims.currentAnim.key,
+        frameRate: b.savedFrameRate || 10,
+        repeat: 0, // 1번만 재생
+        forceShift: true, // 강제로 처음 프레임부터 다시 시작
+      });
+
+      // 애니메이션이 다 끝나면 그때 비로소 삭제
+      b.once("animationcomplete", () => {
+        b.destroy();
+      });
+    } else {
+      // 애니메이션이 없는 투사체(그냥 점 등)는 어쩔 수 없이 바로 삭제하거나,
+      // 약간의 딜레이 후 삭제
+      this.time.delayedCall(50, () => b.destroy());
+    }
+  }
+
+  // 골드/데미지 텍스트 이펙트 함수
+  showGoldEffect(x, y, msg, color, fontSize) {
+    // 텍스트 생성
+    const txt = this.add
+      .text(x, y, msg, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: `${fontSize}px`,
+        color: color,
+        stroke: "#000",
+        strokeThickness: 3,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(2000); // 적보다 위에 보이게
+
+    // 위로 떠오르며 사라지는 애니메이션
+    this.tweens.add({
+      targets: txt,
+      y: y - 40, // 위로 60픽셀 이동
+      alpha: 0, // 투명해짐
+      duration: 1200, // 1.2초 동안
+      ease: "Power2",
+      onComplete: () => {
+        txt.destroy(); // 애니메이션 끝나면 삭제
+      },
+    });
+  }
+
+  togglePause() {
+    this.isPaused = !this.isPaused;
+    if (this.isPaused) {
+      this.physics.pause();
+      this.pauseOverlay.setVisible(true);
+      this.pauseText.setVisible(true);
+      this.txtPause.setText("다시 시작");
+    } else {
+      this.physics.resume();
+      this.pauseOverlay.setVisible(false);
+      this.pauseText.setVisible(false);
+      this.txtPause.setText("일시 정지");
+    }
+  }
+
+  // GameScene 클래스 내부의 update 함수
+
+  update(time, delta) {
+    if (this.isPaused || this.isGameOver) return;
+
+    // 현재 게임 속도 (기본 1, 2배속 시 2)
+    const speedMult = this.time.timeScale;
+
+    // delta는 밀리초(ms) 단위이므로 초(second) 단위로 변환 (1초 = 1000ms)
+    // dt = 1.0 이면 1초가 지났다는 뜻
+    const dt = delta / 1000;
+
+    // 적 이동 로직
+    this.enemies.children.iterate((enemy) => {
+      if (enemy && enemy.active) {
+        // [속도 조절]
+        // 기존 0.0002 같은 아주 작은 값은 '프레임당' 이동량이었지만,
+        // 이제는 '1초당' 이동량(라디안)을 생각해야 한다.
+        // 예: moveSpeed가 50이면 -> 0.5 라디안/초 (한 바퀴 도는데 약 12초 걸림)
+        const ANGULAR_SPEED_FACTOR = 0.03;
+
+        // (기본속도 50) * 0.01 = 0.5 라디안/초
+        const moveSpeed = (enemy.moveSpeed || 50) * ANGULAR_SPEED_FACTOR;
+
+        // (속도) * (게임배속) * (흐른 시간)
+        // 이 공식이 있어야 144Hz 모니터든 60Hz 모니터든 똑같은 거리를 이동
+        enemy.pathAngle += moveSpeed * speedMult * dt;
+
+        // 궤도 위치 계산
+        const orbitRadius = this.mapRadius - 20;
+        enemy.x = this.mapCenter.x + Math.cos(enemy.pathAngle) * orbitRadius;
+        enemy.y = this.mapCenter.y + Math.sin(enemy.pathAngle) * orbitRadius;
+        enemy.setRotation(0);
+
+        // 왼쪽/오른쪽 볼 때 뒤집기
+        if (Math.cos(enemy.pathAngle) < 0) {
+          enemy.setFlipX(true);
+        } else {
+          enemy.setFlipX(false);
+        }
+        if (enemy.hpBar) {
+          enemy.hpBar.clear(); // 이전 프레임 그림 지우기
+
+          // 보스냐 일반몹이냐에 따라 크기 다르게
+          const width = enemy.isBoss ? 60 : 30; // 바 길이
+          const height = 4; // 바 두께
+          const offsetY = enemy.isBoss ? 50 : 30; // 적 머리 위(혹은 아래) 거리
+
+          // 바 위치 계산 (적 중앙 하단)
+          const barX = enemy.x - width / 2;
+          const barY = enemy.y + offsetY;
+
+          // 1. 배경 (검은색)
+          enemy.hpBar.fillStyle(0x000000, 1);
+          enemy.hpBar.fillRect(barX, barY, width, height);
+
+          // 2. 현재 체력
+          const hpPercent = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
+          enemy.hpBar.fillStyle(0xff0000, 1);
+          enemy.hpBar.fillRect(barX, barY, width * hpPercent, height);
+        }
+      }
+    });
+    this.units.children.iterate((u) => {
+      if (u && u.active) this.unitAttack(u);
+    });
+
+    this.updateBullets();
+
+    //=== 적 숫자 체크 로직 ===
+    const currentEnemies = this.enemies.countActive(true);
+    const maxEnemies = GAME_CONFIG.maxEnemies;
+
+    if (this.txtEnemyCount) {
+      this.txtEnemyCount.setText(
+        `남은 혈귀: ${currentEnemies} / ${maxEnemies}`
+      );
+
+      if (currentEnemies >= maxEnemies * 0.8) {
+        this.txtEnemyCount.setColor("#ff0000");
+      } else {
+        this.txtEnemyCount.setColor("#ffffff");
+      }
+    }
+
+    if (currentEnemies > maxEnemies) {
+      this.gameOver();
+    }
+  }
+  // GameScene 클래스 내부에 추가
+
+  showBossCutscene(bossKey, bossName, cutsceneImgKey) {
+    // 1. 게임 진행 일시 정지 (타이머 및 물리 엔진)
+    this.spawnTimer.paused = true;
+    this.physics.pause();
+
+    // 컷신용 컨테이너 (나중에 한꺼번에 지우기 위함)
+    const cutsceneContainer = this.add.container(0, 0).setDepth(99999);
+
+    // 2. [연출] 붉은색 경고 점멸 (WARNING 효과)
+    const redFlash = this.add.rectangle(640, 360, 1280, 720, 0xff0000, 0.5);
+    cutsceneContainer.add(redFlash);
+
+    this.tweens.add({
+      targets: redFlash,
+      alpha: 0,
+      duration: 300,
+      yoyo: true,
+      repeat: 3, // 3번 깜빡임
+      onComplete: () => {
+        redFlash.destroy(); // 깜빡임 끝나면 제거
+      },
+    });
+
+    // 3. 어두운 배경 (검은색 오버레이)
+    const bg = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.85);
+    bg.setAlpha(0); // 처음엔 투명했다가 나타남
+    cutsceneContainer.add(bg);
+
+    // 4. 보스 이미지 (화면 오른쪽 밖에서 왼쪽으로 슬라이드)
+    // 이미지가 없으면 기본값 사용
+    const imgKey = this.textures.exists(cutsceneImgKey)
+      ? cutsceneImgKey
+      : bossKey;
+
+    const bossImg = this.add.sprite(1400, 360, imgKey).setOrigin(0.5);
+    // 이미지 크기 조정 (화면 높이의 80% 정도)
+    const scale = (720 * 0.8) / bossImg.height;
+    bossImg.setScale(scale);
+    bossImg.setAlpha(0);
+    cutsceneContainer.add(bossImg);
+
+    // 5. 텍스트 (WARNING 및 보스 이름)
+    const warnText = this.add
+      .text(640, 200, "⚠ WARNING ⚠", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "60px",
+        color: "#ff0000",
+        fontStyle: "bold",
+        stroke: "#ffffff",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+
+    const nameText = this.add
+      .text(640, 600, `[ ${bossName} ]`, {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "50px",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+
+    cutsceneContainer.add([warnText, nameText]);
+
+    // === 애니메이션 시퀀스 ===
+
+    // 배경 어두워짐
+    this.tweens.add({
+      targets: bg,
+      alpha: 0.85,
+      duration: 500,
+    });
+
+    // 보스 이미지 슬라이드 인 (오른쪽 -> 중앙)
+    this.tweens.add({
+      targets: bossImg,
+      x: 800, // 약간 오른쪽 치우치게 배치
+      alpha: 1,
+      duration: 800,
+      ease: "Power2",
+      delay: 300, // 배경 어두워진 뒤 시작
+    });
+
+    // 텍스트 등장
+    this.tweens.add({
+      targets: [warnText, nameText],
+      alpha: 1,
+      scale: { from: 1.5, to: 1 }, // 쿵 찍는 효과
+      duration: 500,
+      ease: "Bounce",
+      delay: 800,
+    });
+
+    // 6. 컷신 종료 및 게임 재개 (3초 후)
+    this.time.delayedCall(3500, () => {
+      // 서서히 사라짐
+      this.tweens.add({
+        targets: cutsceneContainer,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+          cutsceneContainer.destroy(); // 컷신 객체 삭제
+
+          // 게임 재개
+          this.physics.resume();
+          this.spawnTimer.paused = false;
+
+          // 보스 소환 알림 (선택 사항)
+          console.log("보스 전투 시작!");
+        },
+      });
+    });
+  }
+
+  // js/game.js 파일의 GameScene 클래스 안쪽 gameOver 함수 교체
+
+  async gameOver() {
+    if (this.isGameOver) return;
+    this.isGameOver = true;
+
+    this.physics.pause(); // 게임 멈춤
+
+    // 1. 배경 어둡게 (Depth를 높여서 유닛들보다 위에 오게 함)
+    this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.8).setDepth(9000); // [중요] 유닛보다 훨씬 높은 숫자
+
+    // 2. 텍스트 표시
+    this.add
+      .text(640, 250, "GAME OVER", {
+        fontFamily: "Cafe24ClassicType",
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "64px",
+        color: "red",
+      })
+      .setOrigin(0.5)
+      .setDepth(9001);
+
+    this.add
+      .text(640, 350, `최종 기록: ${this.round} Round`, {
+        fontFamily: "Cafe24ClassicType",
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "32px",
+        color: "white",
+      })
+      .setOrigin(0.5)
+      .setDepth(9001);
+
+    // 3. 저장 상태 텍스트
+    const savingText = this.add
+      .text(640, 450, "기록 저장 중...", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "20px",
+        color: "yellow",
+      })
+      .setOrigin(0.5)
+      .setDepth(9001);
+
+    // 4. [핵심] 메뉴 나가기 버튼 (Depth 최상위 설정)
+    const btnRestart = this.add
+      .rectangle(640, 550, 240, 70, 0xffffff)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(9002); // 가장 위에!
+
+    const txtRestart = this.add
+      .text(640, 550, "메뉴로 나가기", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "24px",
+        color: "#000",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(9002);
+
+    // 버튼 클릭 이벤트 (클릭되면 콘솔에 로그 찍힘)
+    btnRestart.on("pointerdown", () => {
+      console.log("메뉴 버튼 클릭됨!"); // F12 콘솔에서 확인 가능
+      this.scene.stop("GameScene");
+      this.scene.start("MenuScene");
+    });
+
+    // 마우스 올렸을 때 효과 (잘 작동하는지 눈으로 확인용)
+    btnRestart.on("pointerover", () => btnRestart.setFillStyle(0xcccccc));
+    btnRestart.on("pointerout", () => btnRestart.setFillStyle(0xffffff));
+
+    // 5. Firebase 저장 시도 (실패해도 게임이 멈추지 않도록 예외처리)
+    if (db && currentPlayerName) {
+      try {
+        // 3초 안에 저장 안 되면 포기 (무한 로딩 방지)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("시간 초과")), 3000)
+        );
+
+        await Promise.race([
+          addDoc(collection(db, "scores"), {
+            name: currentPlayerName,
+            round: this.round,
+            createdAt: new Date().toISOString(),
+          }),
+          timeoutPromise,
+        ]);
+
+        savingText.setText("기록 저장 완료!");
+        savingText.setColor("#00ff00");
+      } catch (e) {
+        console.error("저장 실패:", e);
+        savingText.setText("저장 실패 (인터넷/권한 확인)");
+        savingText.setColor("#ff0000");
+      }
+    } else {
+      savingText.setText("저장 안됨 (설정 확인 필요)");
+    }
+  }
+}
+
+const config = {
+  type: Phaser.AUTO,
+  width: 1280,
+  height: 720,
+  parent: "game-container",
+  backgroundColor: "#050510",
+  physics: { default: "arcade", arcade: { debug: false } },
+  scene: [BootScene, MenuScene, GameScene],
+};
+
+const game = new Phaser.Game(config);

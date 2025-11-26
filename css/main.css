@@ -1,0 +1,91 @@
+/* main.css */
+@font-face {
+  font-family: "Cafe24ClassicType";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2210-2@1.0/Cafe24ClassicType-Regular.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-display: block;
+  /* swap 대신 block을 쓰면 로딩될 때까지 글씨를 숨겨서 깜빡임을 방지함 */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #050510;
+  color: white;
+  font-family: "Cafe24ClassicType", "Noto Sans KR", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* 오버레이가 캔버스 위에 뜨도록 설정 */
+  position: relative;
+  z-index: 1;
+}
+
+/* --- 로그인 오버레이 스타일 --- */
+#login-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+    url("../assets/images/background1.png");
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.login-box {
+  background: #2c0404; /* 귀살대 느낌의 짙은 적색 */
+  padding: 40px;
+  border: 2px solid #e74c3c;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 0 20px #e74c3c;
+}
+
+.login-box h2 {
+  margin-top: 0;
+  color: #fff;
+  font-size: 24px;
+}
+
+.login-box input {
+  padding: 10px;
+  font-size: 18px;
+  margin-bottom: 15px;
+  background: #111;
+  border: 1px solid #555;
+  color: #fff;
+  width: 200px;
+  text-align: center;
+}
+
+.login-box button {
+  padding: 10px 20px;
+  font-size: 18px;
+  background: #3498db;
+  color: white;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.login-box button:hover {
+  background: #2980b9;
+}

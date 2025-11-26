@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>귀멸의 칼날 랜덤 디펜스</title>
+    <link rel="stylesheet" href="./css/main.css" />
+    <script
+      src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div
+      style="
+        font-family: 'Cafe24ClassicType';
+        opacity: 0;
+        position: absolute;
+        pointer-events: none;
+      "
+    >
+      .
+    </div>
+    <div id="game-container"></div>
+
+    <div id="login-overlay">
+      <div class="login-box">
+        <h2>대원 등록</h2>
+        <input
+          type="text"
+          id="nickname"
+          placeholder="이름을 입력하세요"
+          maxlength="8"
+        />
+        <button id="start-btn">임무 시작</button>
+      </div>
+    </div>
+
+    <script type="module" src="./js/game.js"></script>
+  </body>
+</html>
