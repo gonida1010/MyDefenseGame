@@ -1884,10 +1884,21 @@ class GameScene extends Phaser.Scene {
         moveSpeed = 10;
       }
     } else {
-      // 일반 라운드: 라운드가 높을수록 잡몹도 강해짐
-      hp = this.round * 200;
-    }
+      // ==========================================================
+      // [수정] 잡몹 체력 상향 조정 (밸런스 패치)
+      // ==========================================================
 
+      // 1. 기본 공식 강화: (기존: 라운드 * 200)
+      let baseHp = this.round * 200;
+
+      // 2. [옵션] 후반부 난이도 불지옥 모드 (10라운드 이후 추가 증가)
+      // 라운드의 제곱만큼 체력을 더해서 후반에 잡몹이 안 죽게 만듦
+      if (this.round > 10) {
+        baseHp += this.round * this.round * 2;
+      }
+
+      hp = baseHp;
+    }
     // 적 생성 위치 및 이동 속성
     const startAngle = 0;
     const orbitRadius = this.mapRadius - 20;
@@ -1954,9 +1965,9 @@ class GameScene extends Phaser.Scene {
     const chance = Phaser.Math.Between(1, 100);
     let targetTier = 1;
 
-    if (chance <= 15) {
+    if (chance <= 10) {
       targetTier = 3; // 15% 확률 (희귀)
-    } else if (chance <= 35) {
+    } else if (chance <= 30) {
       targetTier = 2; // 35% 확률 (고급)
     } else {
       targetTier = 1; // 50% 확률 (일반)
@@ -2893,12 +2904,12 @@ class GameScene extends Phaser.Scene {
       let reward = 0;
 
       if (e.isBoss) {
-        reward = 1000;
+        reward = 800;
 
         // 보스 처치 텍스트 이펙트 (크고 화려하게)
         this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
       } else {
-        reward = 10;
+        reward = 5;
 
         // 2. 잡몹: 라운드가 오를수록 돈 더 줌
         // 기본 5원 + (라운드 / 4) 만큼 추가
