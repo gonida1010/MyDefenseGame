@@ -318,6 +318,74 @@ class BootScene extends Phaser.Scene {
       frameHeight: 64,
     });
 
+    // ===============================================================
+    // [신규 추가: Tier 5 & 6 신규 유닛 공격 모션]
+    // ===============================================================
+
+    // 1. 렌고쿠(멸살) - rengoku_9th_form
+    this.load.spritesheet("attack_rengoku_9th", "rengoku_9th_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 2. 텐겐(악보) - tengen_musical_score
+    this.load.spritesheet("attack_tengen_score", "tengen_score_attack.png", {
+      frameWidth: 128,
+      frameHeight: 64,
+    });
+    // 3. 시노부(종의형) - shinobu_last_dance
+    this.load.spritesheet("attack_shinobu_dance", "shinobu_dance_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 4. 카나에(꽃의영) - kanae_flower_final
+    this.load.spritesheet("attack_kanae_spirit", "kanae_spirit_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 5. 사네미(반점) - sanemi_typhoon
+    this.load.spritesheet("attack_sanemi_mark", "sanemi_mark_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 6. 오바나이(반점) - obanai_serpent_god
+    this.load.spritesheet("attack_obanai_mark", "obanai_mark_attack.png", {
+      frameWidth: 1248 / 13,
+      frameHeight: 64,
+    });
+    // 7. 미츠리(반점) - mitsuri_love_cat
+    this.load.spritesheet("attack_mitsuri_mark", "mitsuri_mark_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 8. 렌고쿠(마지막 미소) - rengoku_smile_effect
+    this.load.spritesheet("attack_rengoku_smile", "rengoku_smile_attack.png", {
+      frameWidth: 400 / 8,
+      frameHeight: 50,
+    });
+
+    // [신규 Tier 6]
+    // 9. 젠이츠(화뢰신) - zenitsu_7th_form
+    this.load.spritesheet("attack_zenitsu_7th", "zenitsu_7th_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 10. 기유(잔잔한 물) - giyu_dead_calm
+    this.load.spritesheet("attack_giyu_calm", "giyu_calm_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+    // 11. 사네미(바람의 신) - sanemi_wind_god
+    this.load.spritesheet("attack_sanemi_god", "sanemi_god_attack.png", {
+      frameWidth: 64,
+      frameHeight: 48,
+    });
+    // 12. 렌고쿠(마음의 불꽃) - rengoku_legend_fire
+    this.load.spritesheet(
+      "attack_rengoku_legend",
+      "rengoku_legend_attack.png",
+      { frameWidth: 64, frameHeight: 64 }
+    );
+
     // 유닛 이미지 설정
     for (const key in UNIT_DATA) {
       this.load.image(key, `${key}.png`);
@@ -1022,7 +1090,7 @@ class GameScene extends Phaser.Scene {
           start: 0,
           end: 4,
         }),
-        frameRate: 25, // 난타
+        frameRate: 22, // 난타
         repeat: -1,
       });
     }
@@ -1046,7 +1114,7 @@ class GameScene extends Phaser.Scene {
           start: 0,
           end: 14,
         }),
-        frameRate: 20,
+        frameRate: 218,
         repeat: -1,
       });
     }
@@ -1058,7 +1126,158 @@ class GameScene extends Phaser.Scene {
           start: 0,
           end: 6,
         }),
-        frameRate: 24,
+        frameRate: 20,
+        repeat: -1,
+      });
+    }
+
+    // ===============================================================
+    // [신규 추가] Tier 5 & 6 추가 애니메이션 등록
+    // ===============================================================
+
+    // 1. 렌고쿠(멸살)
+    if (!this.anims.exists("anim_rengoku_9th")) {
+      this.anims.create({
+        key: "anim_rengoku_9th",
+        frames: this.anims.generateFrameNumbers("attack_rengoku_9th", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 14,
+        repeat: -1,
+      });
+    }
+    // 2. 텐겐(악보)
+    if (!this.anims.exists("anim_tengen_score")) {
+      this.anims.create({
+        key: "anim_tengen_score",
+        frames: this.anims.generateFrameNumbers("attack_tengen_score", {
+          start: 0,
+          end: 10,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+    // 3. 시노부(종의형)
+    if (!this.anims.exists("anim_shinobu_dance")) {
+      this.anims.create({
+        key: "anim_shinobu_dance",
+        frames: this.anims.generateFrameNumbers("attack_shinobu_dance", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+    // 4. 카나에(꽃의영)
+    if (!this.anims.exists("anim_kanae_spirit")) {
+      this.anims.create({
+        key: "anim_kanae_spirit",
+        frames: this.anims.generateFrameNumbers("attack_kanae_spirit", {
+          start: 0,
+          end: 11,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+    // 5. 사네미(반점)
+    if (!this.anims.exists("anim_sanemi_mark")) {
+      this.anims.create({
+        key: "anim_sanemi_mark",
+        frames: this.anims.generateFrameNumbers("attack_sanemi_mark", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 6. 오바나이(반점)
+    if (!this.anims.exists("anim_obanai_mark")) {
+      this.anims.create({
+        key: "anim_obanai_mark",
+        frames: this.anims.generateFrameNumbers("attack_obanai_mark", {
+          start: 0,
+          end: 12,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 7. 미츠리(반점)
+    if (!this.anims.exists("anim_mitsuri_mark")) {
+      this.anims.create({
+        key: "anim_mitsuri_mark",
+        frames: this.anims.generateFrameNumbers("attack_mitsuri_mark", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    // 8. 렌고쿠(마지막 미소)
+    if (!this.anims.exists("anim_rengoku_smile")) {
+      this.anims.create({
+        key: "anim_rengoku_smile",
+        frames: this.anims.generateFrameNumbers("attack_rengoku_smile", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
+    // [신규 Tier 6]
+    // 9. 젠이츠(화뢰신)
+    if (!this.anims.exists("anim_zenitsu_7th")) {
+      this.anims.create({
+        key: "anim_zenitsu_7th",
+        frames: this.anims.generateFrameNumbers("attack_zenitsu_7th", {
+          start: 0,
+          end: 12,
+        }),
+        frameRate: 20,
+        repeat: -1,
+      });
+    }
+    // 10. 기유(잔잔한 물)
+    if (!this.anims.exists("anim_giyu_calm")) {
+      this.anims.create({
+        key: "anim_giyu_calm",
+        frames: this.anims.generateFrameNumbers("attack_giyu_calm", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 14,
+        repeat: -1,
+      });
+    }
+    // 11. 사네미(바람의 신)
+    if (!this.anims.exists("anim_sanemi_god")) {
+      this.anims.create({
+        key: "anim_sanemi_god",
+        frames: this.anims.generateFrameNumbers("attack_sanemi_god", {
+          start: 0,
+          end: 4,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    // 12. 렌고쿠(마음의 불꽃)
+    if (!this.anims.exists("anim_rengoku_legend")) {
+      this.anims.create({
+        key: "anim_rengoku_legend",
+        frames: this.anims.generateFrameNumbers("attack_rengoku_legend", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 15,
         repeat: -1,
       });
     }
@@ -2807,6 +3026,97 @@ class GameScene extends Phaser.Scene {
       bulletSpeed = 500;
     }
 
+    // ===============================================================
+    // [신규 추가] Tier 5 & 6 신규 유닛 공격 설정
+    // ===============================================================
+
+    // 1. 렌고쿠(멸살)
+    else if (type === "rengoku_9th_form") {
+      bulletKey = "attack_rengoku_9th";
+      animKey = "anim_rengoku_9th";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 2. 텐겐(악보)
+    else if (type === "tengen_musical_score") {
+      bulletKey = "attack_tengen_score";
+      animKey = "anim_tengen_score";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 3. 시노부(종의형)
+    else if (type === "shinobu_last_dance") {
+      bulletKey = "attack_shinobu_dance";
+      animKey = "anim_shinobu_dance";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 4. 카나에(꽃의영)
+    else if (type === "kanae_flower_final") {
+      bulletKey = "attack_kanae_spirit";
+      animKey = "anim_kanae_spirit";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 5. 사네미(반점)
+    else if (type === "sanemi_typhoon") {
+      bulletKey = "attack_sanemi_mark";
+      animKey = "anim_sanemi_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 6. 오바나이(반점)
+    else if (type === "obanai_serpent_god") {
+      bulletKey = "attack_obanai_mark";
+      animKey = "anim_obanai_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 7. 미츠리(반점)
+    else if (type === "mitsuri_love_cat") {
+      bulletKey = "attack_mitsuri_mark";
+      animKey = "anim_mitsuri_mark";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 8. 렌고쿠(마지막 미소) - 서포트 느낌이거나 특수 연출
+    else if (type === "rengoku_smile_effect") {
+      bulletKey = "attack_rengoku_smile";
+      animKey = "anim_rengoku_smile";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+
+    // [신규 Tier 6]
+    // 9. 젠이츠(화뢰신)
+    else if (type === "zenitsu_7th_form") {
+      bulletKey = "attack_zenitsu_7th";
+      animKey = "anim_zenitsu_7th";
+      animFrameRate = 18;
+      bulletSpeed = 800; // 매우 빠름
+    }
+    // 10. 기유(잔잔한 물)
+    else if (type === "giyu_dead_calm") {
+      bulletKey = "attack_giyu_calm";
+      animKey = "anim_giyu_calm";
+      animFrameRate = 12;
+      bulletSpeed = 500;
+    }
+    // 11. 사네미(바람의 신)
+    else if (type === "sanemi_wind_god") {
+      bulletKey = "attack_sanemi_god";
+      animKey = "anim_sanemi_god";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+    // 12. 렌고쿠(마음의 불꽃)
+    else if (type === "rengoku_legend_fire") {
+      bulletKey = "attack_rengoku_legend";
+      animKey = "anim_rengoku_legend";
+      animFrameRate = 14;
+      bulletSpeed = 500;
+    }
+
     // 2. 투사체 생성
     const b = this.bullets.create(unit.x, unit.y, bulletKey);
 
@@ -2830,7 +3140,7 @@ class GameScene extends Phaser.Scene {
         scaleRatio = 5.0;
         break;
       case 6:
-        scaleRatio = 5.5;
+        scaleRatio = 5.0;
         break;
       default:
         scaleRatio = 1.5;
