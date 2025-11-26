@@ -50,7 +50,8 @@ class BootScene extends Phaser.Scene {
     super("BootScene");
   }
   preload() {
-    this.load.setPath("/MyDefenseGame/assets/images");
+    this.load.setPath("assets/images");
+    // this.load.setPath("/MyDefenseGame/assets/images");
 
     // [추가] 메인 메뉴 배경 이미지 로드
     this.load.image("menu_bg", "background2.png");
@@ -1637,17 +1638,36 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // 시간 임박 효과 (화면 붉어짐)
     if (this.round % ENEMY_CONFIG.bossInterval === 0) {
       this.txtTime.setColor("#ff0000");
-      this.bg.setTint(0xff5555); // 붉은색 틴트
+      this.bg.setTint(0xff5555);
     } else {
       this.txtTime.setColor("#00ff00");
-      this.bg.clearTint(); // 원래 색상 복구
+      this.bg.clearTint();
     }
 
     this.txtTime.setText(`TIME: ${this.currentTime}`);
 
-    if (this.currentTime <= 0) this.handleRoundEnd();
+    // 시간이 0이 되었을 때의 처리
+    if (this.currentTime <= 0) {
+      // 1. 현재가 보스 라운드인지 확인 (10, 20, 30...)
+      const isBossRound = this.round % 10 === 0;
+
+      // 2. 살아있는 보스가 있는지 확인
+      // (enemies 그룹에서 active 상태이고 isBoss 속성이 true인 녀석을 찾음)
+      const liveBoss = this.enemies
+        .getChildren()
+        .find((e) => e.active && e.isBoss);
+
+      if (isBossRound && liveBoss) {
+        // 보스 라운드인데 시간이 0이고, 보스가 살아있다? -> 게임 오버!
+        this.gameOver();
+      } else {
+        // 일반 라운드거나, 보스를 이미 잡았다면 -> 다음 라운드 진행
+        this.handleRoundEnd();
+      }
+    }
   }
 
   // 데이터에 연결된 다른 이미지(컷신)를 띄우는 이펙트
