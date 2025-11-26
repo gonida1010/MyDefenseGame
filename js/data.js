@@ -226,7 +226,7 @@ export const UNIT_DATA = {
     speed: 750,
     range: 160,
     type: "kanae_flower",
-    cutscene: "kanae_cutscene",
+    cutscene: "Kanae_cutscene",
   },
   muichiro: {
     name: "하주 무이치로",
