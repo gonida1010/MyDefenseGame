@@ -2015,11 +2015,13 @@ class GameScene extends Phaser.Scene {
     // this.gold += reward;
     // this.txtGold.setText(`GOLD: ${this.gold}`);
 
+    // 보스 라운드 체크 (10라운드 단위)
     if (this.round % ENEMY_CONFIG.bossInterval === 0) {
       // 현재 라운드에 맞는 보스 정보 찾기
       let bossInfo = null;
       let bossKey = "";
 
+      // spawnEnemy와 동일한 순서로 업데이트
       if (this.round === 10) {
         bossKey = "boss_rui";
         bossInfo = ENEMY_CONFIG.types.boss_rui;
@@ -2030,24 +2032,34 @@ class GameScene extends Phaser.Scene {
         bossKey = "boss_daki";
         bossInfo = ENEMY_CONFIG.types.boss_daki;
       } else if (this.round === 40) {
-        bossKey = "boss_akaza";
-        bossInfo = ENEMY_CONFIG.types.boss_akaza;
+        bossKey = "boss_gyokko"; // 굣코 추가
+        bossInfo = ENEMY_CONFIG.types.boss_gyokko;
       } else if (this.round === 50) {
-        bossKey = "boss_koku";
+        bossKey = "boss_hantengu"; // 한텐구 추가
+        bossInfo = ENEMY_CONFIG.types.boss_hantengu;
+      } else if (this.round === 60) {
+        bossKey = "boss_akaza"; // 아카자 (40 -> 60으로 이동)
+        bossInfo = ENEMY_CONFIG.types.boss_akaza;
+      } else if (this.round === 70) {
+        bossKey = "boss_doma"; // 도우마 추가
+        bossInfo = ENEMY_CONFIG.types.boss_doma;
+      } else if (this.round === 80) {
+        bossKey = "boss_koku"; // 코쿠시보 (50 -> 80으로 이동)
         bossInfo = ENEMY_CONFIG.types.boss_koku;
-      } else if (this.round >= 60) {
-        bossKey = "boss_muzan";
+      } else if (this.round >= 90) {
+        bossKey = "boss_muzan"; // 무잔 (60 -> 90으로 이동)
         bossInfo = ENEMY_CONFIG.types.boss_muzan;
       }
 
+      // 보스 정보가 있고, 해당 보스의 컷신 정보가 있다면 재생
       if (bossInfo) {
         const cutsceneKey = bossInfo.cutscene || null;
         this.showBossCutscene(bossKey, bossInfo.name, cutsceneKey);
-        return;
+        return; // 컷신 재생 중에는 아래 "ROUND START" 텍스트가 겹치지 않게 리턴
       }
     }
 
-    // 알림 메시지
+    // 일반 라운드 알림 메시지
     const notice = this.add
       .text(640, 360, `ROUND ${this.round} START!`, {
         fontFamily: "Cafe24ClassicType",
@@ -2112,16 +2124,20 @@ class GameScene extends Phaser.Scene {
       }
     } else {
       // ==========================================================
-      // [수정] 잡몹 체력 상향 조정 (밸런스 패치)
+      // [수정] 잡몹 체력: 기본 복구 + 제곱 강화형
       // ==========================================================
 
-      // 1. 기본 공식 강화: (기존: 라운드 * 200)
+      // 1. 기본 공식 복구 (원래 버전)
       let baseHp = this.round * 200;
 
-      // 2. [옵션] 후반부 난이도 불지옥 모드 (10라운드 이후 추가 증가)
-      // 라운드의 제곱만큼 체력을 더해서 후반에 잡몹이 안 죽게 만듦
+      // 기본 체력이 낮아졌으므로, 후반 난이도 유지를 위해 이 숫자를 높여야 합니다.
       if (this.round > 10) {
-        baseHp += this.round * this.round * 2.5;
+        baseHp += this.round * this.round * 30;
+      }
+
+      // 3. 30라운드 이후 1.5배 뻥튀기
+      if (this.round >= 30) {
+        baseHp = baseHp * 1.5;
       }
 
       hp = baseHp;
