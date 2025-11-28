@@ -793,7 +793,7 @@ export const RECIPES = [
 
 export const ENEMY_CONFIG = {
   bossInterval: 10,
-  finalRound: 70,
+  finalRound: 90,
   types: {
     lower: { color: 0x555555, radius: 15, name: "하현 졸개", hpMult: 100 },
 

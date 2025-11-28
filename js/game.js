@@ -1,6 +1,10 @@
 // game.js 파일
-
-import { GAME_CONFIG, UNIT_DATA, RECIPES, ENEMY_CONFIG } from "./data.js";
+let GAME_CONFIG;
+let UNIT_DATA;
+let RECIPES;
+let ENEMY_CONFIG;
+let game; // Phaser.Game 인스턴스
+// import { GAME_CONFIG, UNIT_DATA, RECIPES, ENEMY_CONFIG } from "./data.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import {
   getFirestore,
@@ -25,24 +29,79 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 let currentPlayerName = "이름없음";
+let currentMode = "normal"; // ★ 현재 선택된 모드 (normal | hard)
 console.log("Firebase Connected!");
 
-// HTML UI 연동 (닉네임 입력)
+// === 모드별 점수 컬렉션 이름 ===
+function getScoreCollectionName(mode) {
+  return mode === "hard" ? "scores_hard" : "scores_normal";
+}
+
+// === 모드별 랭킹 텍스트 가져오기 (MenuScene에서 사용) ===
+async function fetchLeaderboardText(mode) {
+  if (!db) return "데이터베이스 연결 실패";
+
+  try {
+    const q = query(
+      collection(db, getScoreCollectionName(mode)),
+      orderBy("round", "desc"),
+      limit(10)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return "아직 기록이 없습니다.";
+    }
+
+    let text = "";
+    let rank = 1;
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      text += `${rank}위. ${data.name} - ${data.round}라운드\n`;
+      rank++;
+    });
+    return text;
+  } catch (e) {
+    console.error(e);
+    return "랭킹 로드 중 오류 발생";
+  }
+}
+
+// === HTML UI (대원 등록 화면만) ===
 const overlay = document.getElementById("login-overlay");
 const nicknameInput = document.getElementById("nickname");
 const startBtn = document.getElementById("start-btn");
+// let currentPlayerName = "이름없음";
 
-// 시작 버튼 클릭 이벤트
-startBtn.addEventListener("click", () => {
+// 기존 startBtn 삭제하고 두 개의 버튼을 가져옵니다.
+const btnNormal = document.getElementById("btn-normal");
+const btnHard = document.getElementById("btn-hard");
+
+// 게임 시작 공통 함수 추가
+async function tryStartGame(selectedMode) {
+  // 1. 게임 인스턴스 확인
+  if (!game) {
+    alert("게임 로딩 중입니다. 잠시만 기다려주세요!");
+    return;
+  }
+
+  // 2. 이름 입력 확인
   const name = nicknameInput.value.trim();
   if (name.length < 1) {
     alert("이름을 입력해주세요!");
     return;
   }
+
+  // 3. 데이터 설정 및 씬 시작
   currentPlayerName = name;
-  overlay.style.display = "none";
-  game.scene.start("MenuScene");
-});
+  currentMode = selectedMode; // 모드 설정
+
+  console.log(`${selectedMode} 모드로 데이터 로딩 중...`);
+  await loadDataForMode(selectedMode); // ★ 선택한 모드 데이터 로드
+
+  overlay.style.display = "none"; // 로그인창 숨김
+  game.scene.start("MenuScene"); // 메뉴 씬으로 이동
+}
 
 // Scene 1: Boot
 class BootScene extends Phaser.Scene {
@@ -53,9 +112,14 @@ class BootScene extends Phaser.Scene {
     this.load.setPath("assets/images");
     // this.load.setPath("/MyDefenseGame/assets/images");
 
-    // [추가] 메인 메뉴 배경 이미지 로드
+    // 메인 메뉴 배경 이미지 로드
     this.load.image("menu_bg", "background2.png");
     this.load.image("game_bg", "background3.png");
+
+    this.load.image("mode_normal", "background2.png");
+    this.load.image("mode_hard", "mode_hard.png");
+
+    this.load.image("game_clear_bg", "game_clear.png");
 
     // [★★★ 공격 모션 ★★★]
     this.load.spritesheet("attack_slayer_basic", "basic_attack.png", {
@@ -435,111 +499,170 @@ class BootScene extends Phaser.Scene {
   }
 }
 
-// --- Scene 2: Menu (랭킹 표시) ---
+// --- Scene 2: Menu (모드 선택 + 랭킹) ---
 class MenuScene extends Phaser.Scene {
   constructor() {
     super("MenuScene");
   }
 
   create() {
-    this.add
+    // 1. 배경 이미지를 변수(this.bg)에 담아서 나중에 바꿀 수 있게 함
+    this.bg = this.add
       .image(640, 360, "menu_bg")
       .setOrigin(0.5)
-      .setDisplaySize(1280, 720);
+      .setDisplaySize(1280, 720); // 화면 꽉 차게
 
-    // 배경 때문에 글씨 안 보일 시
-    // this.add.rectangle(0, 0, 1280, 720, 0x000000, 0.5).setOrigin(0);
-
-    // 타이틀
+    // 2. 타이틀 (약간 위로 올림)
     this.add
-      .text(640, 100, "귀멸의 칼날\n랜덤 디펜스", {
+      .text(640, 80, "귀멸의 칼날\n랜덤 디펜스", {
         fontFamily: "Cafe24ClassicType",
-        fontSize: "48px",
+        fontSize: "56px",
         color: "#e74c3c",
         align: "center",
         fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 6,
+        shadow: { offsetX: 3, offsetY: 3, color: "#000", blur: 5, fill: true },
       })
       .setOrigin(0.5);
 
-    // 환영 메시지
+    // 3. 환영 메시지
     this.add
-      .text(640, 200, `대원: ${currentPlayerName}`, {
+      .text(640, 180, `대원: ${currentPlayerName}`, {
         fontFamily: "Cafe24ClassicType",
-        fontSize: "24px",
+        fontSize: "28px",
+        color: "#3498db",
+        stroke: "#000",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+
+    // 4. 모드 라벨 (디자인 대폭 강화)
+    const labelStyle = {
+      fontFamily: "Cafe24ClassicType",
+      fontSize: "40px",
+      fontStyle: "bold",
+      align: "center",
+      stroke: "#000000",
+      strokeThickness: 6,
+      shadow: { offsetX: 2, offsetY: 2, color: "#000", blur: 4, fill: true },
+    };
+
+    // 왼쪽 (일반) 텍스트
+    this.normalLabel = this.add
+      .text(320, 360, "스토리 모드\n(라운드90)", {
+        ...labelStyle,
         color: "#3498db",
       })
       .setOrigin(0.5);
 
-    // 게임 시작 버튼
-    const startBtn = this.add.container(640, 300);
-    const bg = this.add
-      .rectangle(0, 0, 200, 60, 0xe74c3c)
-      .setInteractive({ useHandCursor: true });
-    const txt = this.add
-      .text(0, 0, "전투 시작", {
+    // 오른쪽 (하드) 텍스트
+    this.hardLabel = this.add
+      .text(960, 360, "지옥 모드\n(랭커 도전)\n무한 라운드", {
+        ...labelStyle,
+        color: "#e74c3c",
+      })
+      .setOrigin(0.5);
+
+    // 6. 랭킹 타이틀 (중앙 하단)
+    this.modeRankTitle = this.add
+      .text(640, 250, "스토리 모드 랭킹", {
         fontFamily: "Cafe24ClassicType",
         fontSize: "24px",
-      })
-      .setOrigin(0.5);
-    startBtn.add([bg, txt]);
-
-    bg.on("pointerdown", () => this.scene.start("GameScene"));
-    bg.on("pointerover", () => bg.setFillStyle(0xff0000));
-    bg.on("pointerout", () => bg.setFillStyle(0xe74c3c));
-
-    // --- 랭킹 보드 ---
-    this.add
-      .text(640, 400, "- 명예의 전당 (TOP) -", {
-        fontSize: "20px",
         color: "#f1c40f",
+        stroke: "#000",
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
 
+    // 7. 랭킹 텍스트 리스트
     this.leaderboardText = this.add
-      .text(640, 430, "기록을 불러오는 중...", {
+      .text(640, 290, "기록을 불러오는 중...", {
         fontFamily: "Cafe24ClassicType",
-        fontSize: "18px",
-        color: "#aaa",
+        fontSize: "20px",
+        color: "#fff",
         align: "center",
-        lineSpacing: 10,
+        lineSpacing: 12,
+        stroke: "#000",
+        strokeThickness: 3,
       })
       .setOrigin(0.5, 0);
 
-    // 랭킹 데이터 로드
-    this.loadLeaderboard();
+    // === 클릭/호버 영역 설정 ===
+    const leftZone = this.add
+      .zone(0, 0, 640, 720)
+      .setOrigin(0)
+      .setInteractive({ useHandCursor: true });
+
+    const rightZone = this.add
+      .zone(640, 0, 640, 720)
+      .setOrigin(0)
+      .setInteractive({ useHandCursor: true });
+
+    // 마우스 올리면 배경 및 텍스트 변경
+    leftZone.on("pointerover", () => this.setMode("normal"));
+    rightZone.on("pointerover", () => this.setMode("hard"));
+
+    leftZone.on("pointerdown", () => this.startSelectedMode());
+    rightZone.on("pointerdown", () => this.startSelectedMode());
+
+    this.setMode(currentMode);
   }
 
-  async loadLeaderboard() {
-    if (!db) {
-      this.leaderboardText.setText("데이터베이스 연결 실패");
-      return;
-    }
-    try {
-      // 'scores' 컬렉션에서 round 내림차순으로 10개 가져오기
-      const q = query(
-        collection(db, "scores"),
-        orderBy("round", "desc"),
-        limit(10)
-      );
-      const querySnapshot = await getDocs(q);
+  // 모드 변경 시 배경 전체 교체 및 텍스트 효과
+  async setMode(mode) {
+    // 1. 현재 모드 상태 업데이트
+    if (currentMode === mode) return;
+    currentMode = mode;
 
-      if (querySnapshot.empty) {
-        this.leaderboardText.setText("아직 기록이 없습니다.");
-        return;
-      }
+    // 2. 목표 텍스처 및 텍스트 결정
+    let targetTexture = "";
+    let rankTitleText = "";
 
-      let text = "";
-      let rank = 1;
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        text += `${rank}위. ${data.name} - ${data.round}라운드\n`;
-        rank++;
-      });
-      this.leaderboardText.setText(text);
-    } catch (e) {
-      console.error(e);
-      this.leaderboardText.setText("랭킹 로드 중 오류 발생");
+    if (mode === "normal") {
+      targetTexture = "mode_normal";
+      rankTitleText = "=== 일반 모드 랭킹 ===";
+
+      this.normalLabel.setAlpha(1).setScale(1.2);
+      this.hardLabel.setAlpha(0.5).setScale(1.0);
+    } else {
+      targetTexture = "mode_hard";
+      rankTitleText = "=== 하드 모드 랭킹 ===";
+
+      this.normalLabel.setAlpha(0.5).setScale(1.0);
+      this.hardLabel.setAlpha(1).setScale(1.2);
     }
+
+    this.modeRankTitle.setText(rankTitleText);
+    this.tweens.killTweensOf(this.bg);
+    this.tweens.add({
+      targets: this.bg,
+      alpha: 0.3,
+      duration: 150,
+      ease: "Power1",
+      onComplete: () => {
+        this.bg.setTexture(targetTexture);
+        this.bg.setDisplaySize(1280, 720);
+        this.tweens.add({
+          targets: this.bg,
+          alpha: 1,
+          duration: 350,
+          ease: "Power2",
+        });
+      },
+    });
+
+    // 4. 랭킹 데이터 로드 (비동기)
+    const text = await fetchLeaderboardText(mode);
+    // 애니메이션이 끝날 때쯤 텍스트가 업데이트되도록 약간의 딜레이를 줄 수도 있지만,
+    // 일단은 데이터가 로드되는 대로 바로 뜨게 합니다.
+    this.leaderboardText.setText(text);
+  }
+
+  async startSelectedMode() {
+    // 선택된 모드 데이터 로딩 후 게임 시작
+    await loadDataForMode(currentMode);
+    this.scene.start("GameScene");
   }
 }
 
@@ -2032,30 +2155,29 @@ class GameScene extends Phaser.Scene {
         bossKey = "boss_daki";
         bossInfo = ENEMY_CONFIG.types.boss_daki;
       } else if (this.round === 40) {
-        bossKey = "boss_gyokko"; // 굣코 추가
+        bossKey = "boss_gyokko"; // 굣코
         bossInfo = ENEMY_CONFIG.types.boss_gyokko;
       } else if (this.round === 50) {
-        bossKey = "boss_hantengu"; // 한텐구 추가
+        bossKey = "boss_hantengu"; // 한텐구
         bossInfo = ENEMY_CONFIG.types.boss_hantengu;
       } else if (this.round === 60) {
-        bossKey = "boss_akaza"; // 아카자 (40 -> 60으로 이동)
+        bossKey = "boss_akaza"; // 아카자
         bossInfo = ENEMY_CONFIG.types.boss_akaza;
       } else if (this.round === 70) {
-        bossKey = "boss_doma"; // 도우마 추가
+        bossKey = "boss_doma"; // 도우마
         bossInfo = ENEMY_CONFIG.types.boss_doma;
       } else if (this.round === 80) {
-        bossKey = "boss_koku"; // 코쿠시보 (50 -> 80으로 이동)
+        bossKey = "boss_koku"; // 코쿠시보
         bossInfo = ENEMY_CONFIG.types.boss_koku;
       } else if (this.round >= 90) {
-        bossKey = "boss_muzan"; // 무잔 (60 -> 90으로 이동)
+        bossKey = "boss_muzan"; // 무잔
         bossInfo = ENEMY_CONFIG.types.boss_muzan;
       }
 
-      // 보스 정보가 있고, 해당 보스의 컷신 정보가 있다면 재생
       if (bossInfo) {
         const cutsceneKey = bossInfo.cutscene || null;
         this.showBossCutscene(bossKey, bossInfo.name, cutsceneKey);
-        return; // 컷신 재생 중에는 아래 "ROUND START" 텍스트가 겹치지 않게 리턴
+        return;
       }
     }
 
@@ -2135,13 +2257,28 @@ class GameScene extends Phaser.Scene {
         baseHp += this.round * this.round * 30;
       }
 
-      // 3. 30라운드 이후 1.5배 뻥튀기
-      if (this.round >= 30) {
+      // 3. 20라운드 이후 1.5배 뻥튀기
+      if (this.round >= 20) {
         baseHp = baseHp * 1.5;
       }
 
-      hp = baseHp;
+      // ★★★ [신규] 하드 모드 전용 추가 강화 ★★★
+      if (currentMode === "hard") {
+        // (2) 라운드가 지날수록 "제곱" 수치를 더 크게 더함
+        if (this.round > 1) {
+          baseHp += this.round * this.round * 150;
+        }
+
+        baseHp = baseHp * 1.5;
+
+        if (this.round > 90) {
+          baseHp = baseHp * Math.pow(1.05, this.round - 90);
+        }
+      }
+
+      hp = Math.floor(baseHp);
     }
+
     // 적 생성 위치 및 이동 속성
     const startAngle = 0;
     const orbitRadius = this.mapRadius - 20;
@@ -3239,21 +3376,18 @@ class GameScene extends Phaser.Scene {
 
       if (e.isBoss) {
         reward = 1000;
-
-        // 보스 처치 텍스트 이펙트 (크고 화려하게)
         this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
+        if (currentMode === "normal" && this.round === 90) {
+          console.log("스토리 모드 클리어!");
+          this.gameClear(); // 승리 함수 호출
+          return; // 이후 로직(골드 획득 등) 진행 안하고 종료
+        }
+
+        // 하드 모드는 조건문이 없으므로 그냥 계속 진행됨 (무한 라운드)
+        // ============================================================
       } else {
-        reward = 5;
-
-        // 2. 잡몹: 라운드가 오를수록 돈 더 줌
-        // 기본 5원 + (라운드 / 4) 만큼 추가
-        +Math.floor(this.round / 4);
-
-        // 최대치 제한
+        reward = 5 + Math.floor(this.round / 4);
         if (reward > 10) reward = 10;
-
-        // 텍스트 이펙트 (작게)
-        // this.showGoldEffect(e.x, e.y, `+${reward}G`, "#f1c40f", 16);
       }
 
       this.gold += reward;
@@ -3529,8 +3663,83 @@ class GameScene extends Phaser.Scene {
       });
     });
   }
+  // GameScene 클래스 내부에 추가 (gameOver 근처)
 
-  // js/game.js 파일의 GameScene 클래스 안쪽 gameOver 함수 교체
+  // [신규] 게임 클리어 (노멀 모드 엔딩)
+  async gameClear() {
+    if (this.isGameOver) return;
+    this.isGameOver = true; // 게임 상태 종료로 변경
+
+    this.physics.pause(); // 모든 움직임 멈춤
+    this.spawnTimer.paused = true; // 스폰 중지
+
+    // 1. 화면 서서히 암전 (Fade Out)
+    const overlay = this.add
+      .rectangle(640, 360, 1280, 720, 0x000000, 0)
+      .setDepth(9999);
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 1,
+      duration: 1000, // 1초 동안 암전
+      onComplete: () => {
+        // 2. 엔딩 이미지 보여주기 (Fade In)
+        // 'game_clear_bg'가 없으면 에러나니 bootScene에서 꼭 로드하거나 다른 키를 쓰세요.
+        const clearImg = this.add
+          .image(640, 360, "game_clear_bg")
+          .setOrigin(0.5)
+          .setDepth(10000)
+          .setAlpha(0);
+
+        // 이미지 비율 맞추기 (화면에 꽉 차게)
+        clearImg.setDisplaySize(1280, 720);
+
+        this.tweens.add({
+          targets: clearImg,
+          alpha: 1,
+          duration: 1500, // 1.5초 동안 서서히 밝아짐
+          onComplete: () => {
+            // 3. 축하 텍스트
+            this.add
+              .text(640, 600, "MISSION COMPLETE", {
+                fontFamily: "Cafe24ClassicType",
+                fontSize: "60px",
+                color: "#f1c40f",
+                stroke: "#000",
+                strokeThickness: 6,
+              })
+              .setOrigin(0.5)
+              .setDepth(10001);
+
+            // 4. 파이어베이스에 클리어 기록 저장 (선택 사항)
+            this.saveClearRecord();
+
+            // 5. 5초 뒤에 메뉴로 이동
+            this.time.delayedCall(5000, () => {
+              this.scene.start("MenuScene");
+            });
+          },
+        });
+      },
+    });
+  }
+
+  // (보너스) 클리어 기록 저장용 함수
+  async saveClearRecord() {
+    if (!db || !currentPlayerName) return;
+    try {
+      await addDoc(collection(db, "scores_normal"), {
+        // 노멀 모드 점수판
+        name: currentPlayerName,
+        round: 90, // 클리어는 무조건 90라운드
+        isClear: true, // 클리어 여부 표시
+        createdAt: new Date().toISOString(),
+      });
+      console.log("클리어 기록 저장 완료");
+    } catch (e) {
+      console.error("저장 실패", e);
+    }
+  }
 
   async gameOver() {
     if (this.isGameOver) return;
@@ -3608,7 +3817,7 @@ class GameScene extends Phaser.Scene {
         );
 
         await Promise.race([
-          addDoc(collection(db, "scores"), {
+          addDoc(collection(db, getScoreCollectionName(currentMode)), {
             name: currentPlayerName,
             round: this.round,
             createdAt: new Date().toISOString(),
@@ -3639,4 +3848,49 @@ const config = {
   scene: [BootScene, MenuScene, GameScene],
 };
 
-const game = new Phaser.Game(config);
+// === 모드별 데이터 로딩 함수 (MenuScene에서도 사용) ===
+async function loadDataForMode(mode) {
+  const modulePath = mode === "hard" ? "./data.hard.js" : "./data.normal.js";
+
+  const dataModule = await import(modulePath);
+
+  GAME_CONFIG = dataModule.GAME_CONFIG;
+  UNIT_DATA = dataModule.UNIT_DATA;
+  RECIPES = dataModule.RECIPES;
+  ENEMY_CONFIG = dataModule.ENEMY_CONFIG;
+}
+
+// === Phaser 게임 부트스트랩 ===
+async function bootstrap() {
+  // 초기 실행을 위해 기본 데이터 하나는 로드해둡니다 (에러 방지용)
+  await loadDataForMode("normal");
+
+  game = new Phaser.Game(config);
+
+  // ★ HTML 버튼 클릭 이벤트 (이름 입력 -> 메뉴 이동) ★
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      // 1. 게임 로딩 체크
+      if (!game) {
+        alert("게임 로딩 중입니다...");
+        return;
+      }
+
+      // 2. 이름 유효성 검사
+      const name = nicknameInput.value.trim();
+      if (name.length < 1) {
+        alert("이름을 입력해주세요!");
+        return;
+      }
+
+      // 3. 이름 저장 및 화면 전환
+      currentPlayerName = name;
+      overlay.style.display = "none"; // HTML 창 끄기
+
+      // 4. MenuScene 시작 (여기서 모드를 고르게 됨)
+      game.scene.start("MenuScene");
+    });
+  }
+}
+
+bootstrap();

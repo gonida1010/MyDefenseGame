@@ -89,3 +89,45 @@ body {
 .login-box button:hover {
   background: #2980b9;
 }
+
+#mode-split {
+  display: flex;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.mode-area {
+  flex: 1;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.mode-area:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-3px);
+}
+
+#mode-info {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#mode-image {
+  width: 260px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+#mode-leaderboard {
+  margin-top: 8px;
+  text-align: left;
+  white-space: pre-line;
+  font-size: 14px;
+  max-height: 180px;
+  overflow-y: auto;
+}
