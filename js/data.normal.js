@@ -537,7 +537,7 @@ export const UNIT_DATA = {
     name: "코쿠시보(상현1)",
     tier: 6,
     color: 0xffd700,
-    dmg: 34000, // T6급 (56,666 DPS)
+    dmg: 36000, // T6급 (56,666 DPS)
     speed: 600,
     range: 220,
     type: "kokushibo_moon",
@@ -547,7 +547,7 @@ export const UNIT_DATA = {
     name: "탄지로(오니의 왕)",
     tier: 6,
     color: 0x2d3436,
-    dmg: 38000, // 58,461 DPS
+    dmg: 40000, // 58,461 DPS
     speed: 650,
     range: 180,
     type: "tanjiro_demon_king",
@@ -558,7 +558,7 @@ export const UNIT_DATA = {
     tier: 6,
     color: 0xb33939,
     dmg: 55000,
-    speed: 800,
+    speed: 500,
     range: 240,
     type: "twin_destiny_combo",
     cutscene: "twin_destiny_cutscene",
@@ -567,9 +567,9 @@ export const UNIT_DATA = {
     name: "렌고쿠(마음의 불꽃)",
     tier: 6,
     color: 0xff4757,
-    dmg: 48000,
+    dmg: 44000,
     speed: 800, // 60,000 DPS
-    range: 230,
+    range: 200,
     type: "rengoku_legend_fire",
     cutscene: "rengoku_legend_cutscene",
   },

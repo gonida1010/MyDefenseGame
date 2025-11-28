@@ -1481,9 +1481,8 @@ class GameScene extends Phaser.Scene {
     this.input.on("dragstart", (p, o) => {
       if (this.isPaused || this.isGameOver) return;
       try {
-        o.isDragging = true; // 드래그 시작 (공격 멈춤)
+        o.isDragging = true;
         this.hoverText.setVisible(false);
-        // this.recipeText.setVisible(false);
         if (this.recipeContainer) this.recipeContainer.setVisible(false);
         this.children.bringToTop(o);
         o.startX = o.x;
@@ -1507,7 +1506,6 @@ class GameScene extends Phaser.Scene {
 
       try {
         const dist = Phaser.Math.Distance.Between(o.startX, o.startY, o.x, o.y);
-        // 5픽셀 미만 움직임 = 클릭(선택)
         if (dist < 5) {
           o.x = o.startX;
           o.y = o.startY;
@@ -1524,6 +1522,18 @@ class GameScene extends Phaser.Scene {
         }
       }
     });
+    // [스페이스바 단축키 등록]
+    const spaceKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SPACE
+    );
+    spaceKey.on("down", () => {
+      if (this.isPaused || this.isGameOver) return;
+      if (this.selectedUnit) {
+        this.sellSelectedUnit();
+      }
+    });
+
+    this.input.keyboard.addCapture(Phaser.Input.Keyboard.KeyCodes.SPACE);
   }
 
   drawGrid() {
@@ -1614,21 +1624,34 @@ class GameScene extends Phaser.Scene {
       .setDepth(100);
 
     // 유닛 판매 버튼
-    this.btnSell = this.add.container(380, 600).setVisible(false).setDepth(101); // 정보창 바로 아래
+    this.btnSell = this.add.container(380, 600).setVisible(false).setDepth(101);
 
+    // [수정] 버튼 크기를 키워서 (높이 40 -> 55) 두 줄이 들어가게 함
     const sellBg = this.add
-      .rectangle(0, 0, 150, 40, 0xe74c3c)
+      .rectangle(0, 0, 160, 55, 0xe74c3c)
       .setInteractive({ useHandCursor: true });
 
+    // [수정] 판매 가격 텍스트 (위쪽으로 배치 y: -10)
     this.txtSell = this.add
-      .text(0, 0, "판매 (+50G)", {
+      .text(0, -10, "판매 (+50G)", {
         fontFamily: "Cafe24ClassicType",
-        fontSize: "18px",
+        fontSize: "20px",
         color: "#fff",
+        fontStyle: "bold",
       })
       .setOrigin(0.5);
 
-    this.btnSell.add([sellBg, this.txtSell]);
+    // [신규] 스페이스바 단축키 안내 텍스트
+    const txtShortcut = this.add
+      .text(0, 13, "[ Space ]", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "18px",
+        color: "#ffcccc",
+      })
+      .setOrigin(0.5);
+
+    // 컨테이너에 배경, 가격, 단축키 3개를 모두 담음
+    this.btnSell.add([sellBg, this.txtSell, txtShortcut]);
 
     // 판매 버튼 클릭 이벤트
     sellBg.on("pointerdown", () => this.sellSelectedUnit());
