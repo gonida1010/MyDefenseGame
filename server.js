@@ -49,6 +49,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("sync_action", (data) => {
+    if (data.room) {
+      // 나를 제외한 방 안의 사람들에게 전송 (broadcast)
+      socket.to(data.room).emit("sync_action", data);
+    }
+  });
+
   // 유저가 나갔을 때 처리
   socket.on("disconnect", () => {
     console.log("❌ 유저 접속 해제:", socket.id);

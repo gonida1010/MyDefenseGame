@@ -1,31 +1,6 @@
-const socket = io();
-// [신규] 서버로부터 "게임 시작" 신호를 받았을 때
-socket.on("game_start", (data) => {
-  console.log("⚔️ 매칭 성공! 게임 시작!", data);
-  const overlay = document.getElementById("login-overlay");
-  overlay.style.display = "none";
-
-  // 파트너 이름 찾기 (내 아이디가 아닌 사람)
-  const myId = socket.id;
-  const partner = data.players.find((p) => p.id !== myId);
-  if (partner) {
-    partnerName = partner.name;
-    console.log("동료:", partnerName);
-  }
-  game.scene.start("MenuScene");
-});
-socket.on("waiting", (data) => {
-  console.log("매칭 대기 중...");
-  alert("다른 대원을 기다리고 있습니다...");
-});
-
-// game.js 파일
-let GAME_CONFIG;
-let UNIT_DATA;
-let RECIPES;
-let ENEMY_CONFIG;
-let game; // Phaser.Game 인스턴스
-// import { GAME_CONFIG, UNIT_DATA, RECIPES, ENEMY_CONFIG } from "./data.js";
+// ===============================================================
+// 1. 모듈 가져오기 (Imports)
+// ===============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import {
   getFirestore,
@@ -37,6 +12,77 @@ import {
   getDocs,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+// ===============================================================
+// 2. 전역 변수 선언 (Global Variables)
+// ===============================================================
+let GAME_CONFIG;
+let UNIT_DATA;
+let RECIPES;
+let ENEMY_CONFIG;
+let game; // Phaser.Game 인스턴스
+
+// 플레이어 정보 관련
+let currentPlayerName = "이름없음";
+let currentMode = "normal"; // normal | hard | multi
+let partnerName = "";
+let myRoomName = null;
+
+// ===============================================================
+// 3. Socket.IO 설정 및 이벤트 리스너
+// ===============================================================
+const socket = io();
+
+// (1) 연결 확인
+socket.on("connect", () => {
+  console.log("✅ 서버 연결 성공! 내 ID:", socket.id);
+});
+
+// (2) 매칭 대기 중 (waiting)
+socket.on("waiting", (data) => {
+  console.log("⏳ 대기열 등록됨");
+  // 메뉴 씬이 활성화된 상태라면 텍스트를 변경하는 등의 처리가 가능하지만,
+  // 여기서는 콘솔과 알림만 띄웁니다.
+  alert("다른 대원을 기다리고 있습니다...\n");
+});
+
+// (3) 게임 시작 신호 (game_start)
+socket.on("game_start", (data) => {
+  console.log("⚔️ 매칭 성사! 게임 시작", data);
+
+  // 대기 화면(오버레이) 숨기기
+  const overlay = document.getElementById("login-overlay");
+  if (overlay) overlay.style.display = "none";
+
+  // 1. 방 이름 저장 (중계할 때 필요)
+  myRoomName = data.room;
+
+  // 2. 파트너 찾기 (내 ID가 아닌 사람)
+  const myId = socket.id;
+  const partner = data.players.find((p) => p.id !== myId);
+
+  if (partner) {
+    partnerName = partner.name;
+    console.log("내 동료:", partnerName);
+  } else {
+    partnerName = "";
+  }
+
+  // 3. 내가 방장(Host)인지 판별
+  // 플레이어 리스트의 첫 번째([0]) 사람이 방장 역할을 맡음
+  const isHost = data.players[0].id === myId;
+  console.log("나는 방장인가?", isHost);
+
+  // 4. 게임 씬 시작하면서 방장 정보와 방 이름을 넘겨줌
+  // (주의: 이미 MenuScene에 있다면 거기서 start를 호출하는 게 좋지만,
+  // 여기서 강제로 넘겨도 작동합니다.)
+  if (game) {
+    game.scene.start("GameScene", { isHost: isHost, roomName: myRoomName });
+  }
+});
+
+// ===============================================================
+// 4. Firebase 설정 (Configuration)
+// ===============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyC71OnYx9gKWl9KF3JnTRzY0efaoyX9DGM",
   authDomain: "demon-slayer-random-defense.firebaseapp.com",
@@ -49,16 +95,18 @@ const firebaseConfig = {
 // 파이어베이스 초기화
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-let currentPlayerName = "이름없음";
-let currentMode = "normal"; // ★ 현재 선택된 모드 (normal | hard)
 console.log("Firebase Connected!");
 
-// === 모드별 점수 컬렉션 이름 ===
+// ===============================================================
+// 5. 유틸리티 함수
+// ===============================================================
+
+// 모드별 점수 컬렉션 이름 가져오기
 function getScoreCollectionName(mode) {
   if (mode === "hard") {
     return "scores_hard";
   } else if (mode === "multi") {
-    return "scores_multi"; // [추가] 협동 모드 전용 컬렉션
+    return "scores_multi"; // 협동 모드 전용 컬렉션
   } else {
     return "scores_normal";
   }
@@ -97,10 +145,7 @@ async function fetchLeaderboardText(mode) {
 // === HTML UI (대원 등록 화면만) ===
 const overlay = document.getElementById("login-overlay");
 const nicknameInput = document.getElementById("nickname");
-const partnerInput = document.getElementById("partner-nickname");
 const startBtn = document.getElementById("start-btn");
-// let currentPlayerName = "이름없음";
-let partnerName = ""; // 파트너 이름 저장용
 
 // 기존 startBtn 삭제하고 두 개의 버튼을 가져옵니다.
 const btnNormal = document.getElementById("btn-normal");
@@ -757,7 +802,7 @@ class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  init() {
+  init(data) {
     this.round = 1;
     this.gold = GAME_CONFIG.initialGold;
     this.lives = GAME_CONFIG.initialLives;
@@ -774,6 +819,21 @@ class GameScene extends Phaser.Scene {
     this.gridState = Array(this.gridSize)
       .fill(null)
       .map(() => Array(this.gridSize).fill(null));
+
+    const safeData = data || {};
+
+    // 방장 여부 확인 (데이터가 없으면 기본값 true = 싱글 플레이어)
+    this.isHost = safeData.isHost !== undefined ? safeData.isHost : true;
+
+    // 방 이름 확인
+    this.myRoomName = safeData.roomName || null;
+
+    // 멀티 모드 여부 판단
+    this.isMultiplayer = !!this.myRoomName;
+
+    console.log(
+      `게임 초기화: Host=${this.isHost}, Room=${this.myRoomName}, Multi=${this.isMultiplayer}`
+    );
   }
 
   getTierColor(tier) {
@@ -1619,6 +1679,33 @@ class GameScene extends Phaser.Scene {
     });
 
     this.input.keyboard.addCapture(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    if (this.isMultiplayer) {
+      socket.off("sync_action");
+
+      socket.on("sync_action", (data) => {
+        // 1. 적 생성
+        if (data.type === "spawn_enemy") {
+          this.createEnemyFromData(data.payload);
+        }
+        // 2. 적 사망 (돈 획득 포함)
+        else if (data.type === "enemy_died") {
+          this.handleEnemyDeath(data.payload);
+        }
+        // 3. 유닛 배치
+        else if (data.type === "place_unit") {
+          this.createPartnerUnit(data.payload);
+        }
+        // 유닛 삭제/회수 신호
+        else if (data.type === "unit_removed") {
+          this.removePartnerUnit(data.payload.uniqueId);
+        }
+        // [★신규] 적 데미지 동기화
+        else if (data.type === "enemy_damage") {
+          this.handleEnemyDamage(data.payload);
+        }
+      });
+    }
   }
 
   drawGrid() {
@@ -1734,6 +1821,19 @@ class GameScene extends Phaser.Scene {
         color: "#ffcccc",
       })
       .setOrigin(0.5);
+
+    if (currentMode === "multi" && partnerName) {
+      this.add
+        .text(1260, 700, `Together with: ${partnerName}`, {
+          fontFamily: "Cafe24ClassicType",
+          fontSize: "22px",
+          color: "#9b59b6", // 보라색
+          stroke: "#000",
+          strokeThickness: 4,
+        })
+        .setOrigin(1, 1)
+        .setDepth(100);
+    }
 
     // 컨테이너에 배경, 가격, 단축키 3개를 모두 담음
     this.btnSell.add([sellBg, this.txtSell, txtShortcut]);
@@ -1906,6 +2006,15 @@ class GameScene extends Phaser.Scene {
       duration: 1000,
       onComplete: () => txt.destroy(),
     });
+
+    // [★추가] 필드에 있던 유닛을 팔았다면 공유 화면에서도 삭제
+    if (unit.gridX === -1 && this.isMultiplayer) {
+      socket.emit("sync_action", {
+        room: this.myRoomName,
+        type: "unit_removed",
+        payload: { uniqueId: unit.myUniqueId },
+      });
+    }
 
     // 유닛 제거
     unit.destroy();
@@ -2305,18 +2414,22 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnEnemy() {
+    // 1. 기본 체크 (일시정지, 게임오버, 시간확인)
     if (this.isPaused || this.isGameOver) return;
-    if (this.currentTime <= 5) return; // 라운드 끝나기 5초 전엔 생성 중지
+    if (this.currentTime <= 5) return;
 
-    // 보스 라운드인지 체크 (10, 20, 30...)
-    const isBossRound = this.round % 10 === 0;
-    if (isBossRound && this.bossSpawned) {
-      return;
-    }
+    // [멀티플레이] 내가 방장이 아니면 생성 금지
+    if (this.isMultiplayer && !this.isHost) return;
 
-    let key = "enemy_lower"; // 기본은 잡몹
-    let hp = this.round * 150; // 기본 체력은 라운드 비례
+    // 2. 적 정보 결정 (보스 라운드 체크 등)
+    const isBossRound = this.round % ENEMY_CONFIG.bossInterval === 0;
+    if (isBossRound && this.bossSpawned) return;
+
+    // 3. 적 스펙 계산
+    let key = "enemy_lower";
+    let hp = this.round * 150;
     let moveSpeed = 20;
+    let isBoss = false;
 
     // [보스 등장 로직] 라운드별 보스 교체
     if (isBossRound) {
@@ -2353,49 +2466,71 @@ class GameScene extends Phaser.Scene {
         moveSpeed = 2;
       }
     } else {
-      // ==========================================================
-      // [수정] 잡몹 체력: 기본 복구 + 제곱 강화형
-      // ==========================================================
-
-      // 1. 기본 공식 복구 (원래 버전)
+      // [잡몹 라운드]
       let baseHp = this.round * 200;
 
-      // 기본 체력이 낮아졌으므로, 후반 난이도 유지를 위해 이 숫자를 높여야 합니다.
-      if (this.round > 10) {
-        baseHp += this.round * this.round * 30;
-      }
+      if (this.round > 10) baseHp += this.round * this.round * 30;
+      if (this.round >= 20) baseHp = baseHp * 1.5;
 
-      // 3. 20라운드 이후 1.5배 뻥튀기
-      if (this.round >= 20) {
-        baseHp = baseHp * 1.5;
-      }
-
-      // ★★★ [신규] 하드 모드 전용 추가 강화 ★★★
+      // [하드 모드]
       if (currentMode === "hard") {
-        // (2) 라운드가 지날수록 "제곱" 수치를 더 크게 더함
-        if (this.round > 1) {
-          baseHp += this.round * this.round * 150;
-        }
+        if (this.round > 1) baseHp += this.round * this.round * 150;
+        baseHp = baseHp * 1.5;
+        if (this.round > 90) baseHp = baseHp * Math.pow(1.05, this.round - 90);
+      }
 
+      // [★수정] 멀티 모드
+      if (currentMode === "multi") {
+        // 1. 하드 모드와 똑같은 제곱 공식 적용
+        if (this.round > 1) baseHp += this.round * this.round * 150;
+
+        // 2. 그리고 전체 체력 1.5배 (하드 동일)
         baseHp = baseHp * 1.5;
 
-        if (this.round > 90) {
-          baseHp = baseHp * Math.pow(1.05, this.round - 90);
-        }
+        // 3. [멀티 전용] 2명이니까 체력 1.5배 더!
+        baseHp = baseHp * 1.5;
+
+        // 4. 무한 라운드 복리
+        if (this.round > 90) baseHp = baseHp * Math.pow(1.1, this.round - 90);
       }
 
       hp = Math.floor(baseHp);
     }
 
-    // 적 생성 위치 및 이동 속성
+    // 4. 적 생성 데이터 패키징
     const startAngle = 0;
-    const orbitRadius = this.mapRadius - 20;
-    const startX = this.mapCenter.x + Math.cos(startAngle) * orbitRadius;
-    const startY = this.mapCenter.y + Math.sin(startAngle) * orbitRadius;
+    const enemyData = {
+      key: key,
+      hp: hp,
+      maxHp: hp,
+      moveSpeed: moveSpeed,
+      isBoss: isBoss,
+      startAngle: startAngle,
 
-    const enemy = this.enemies.create(startX, startY, key);
+      startX: this.mapCenter.x + Math.cos(startAngle) * (this.mapRadius - 20),
+      startY: this.mapCenter.y + Math.sin(startAngle) * (this.mapRadius - 20),
+      id: Date.now() + Math.random(),
+    };
 
-    if (isBossRound) {
+    // 5. 내 화면에 생성 (방장 본인)
+    this.createEnemyFromData(enemyData);
+
+    // 6. 방원에게 전송 (멀티일 경우)
+    if (this.isMultiplayer && this.isHost) {
+      if (typeof socket !== "undefined") {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "spawn_enemy",
+          payload: enemyData,
+        });
+      }
+    }
+  }
+
+  createEnemyFromData(data) {
+    const enemy = this.enemies.create(data.startX, data.startY, data.key);
+
+    if (data.isBoss) {
       enemy.setDisplaySize(120, 140);
       enemy.setTint(0xffffff);
       enemy.body.setSize(10, 10);
@@ -2407,14 +2542,64 @@ class GameScene extends Phaser.Scene {
       enemy.isBoss = false;
     }
 
-    enemy.hp = hp;
-    enemy.maxHp = hp;
-    enemy.pathAngle = startAngle;
-    enemy.moveSpeed = moveSpeed;
+    enemy.hp = data.hp;
+    enemy.maxHp = data.maxHp;
+    enemy.pathAngle = data.startAngle;
+    enemy.moveSpeed = data.moveSpeed;
+    enemy.uniqueId = data.id;
 
-    // 몹 체력바
+    // 체력바 생성
     enemy.hpBar = this.add.graphics();
-    enemy.hpBar.setDepth(enemy.depth + 1); // 적보다 위에 표시
+    enemy.hpBar.setDepth(enemy.depth + 1);
+  }
+
+  // [수정] 적 사망 처리 + 돈 획득
+  handleEnemyDeath(payload) {
+    const targetId = payload.uniqueId;
+    const isBoss = payload.isBoss;
+
+    const targetEnemy = this.enemies
+      .getChildren()
+      .find((e) => e.uniqueId === targetId);
+
+    if (targetEnemy) {
+      if (targetEnemy.hpBar) targetEnemy.hpBar.destroy();
+
+      // 이펙트 표시를 위해 좌표 저장
+      const ex = targetEnemy.x;
+      const ey = targetEnemy.y;
+
+      targetEnemy.destroy();
+
+      // [★핵심] 파트너가 죽여도 나한테 돈 들어옴!
+      let reward = 0;
+      if (isBoss) {
+        reward = 1000;
+        this.showGoldEffect(ex, ey, "+1000G", "#ff0000", 30);
+      } else {
+        reward = 5 + Math.floor(this.round / 4);
+        if (reward > 10) reward = 10;
+      }
+
+      this.gold += reward;
+      this.txtGold.setText(`GOLD: ${this.gold}`);
+    }
+  }
+
+  // [신규] 데미지 동기화 처리
+  handleEnemyDamage(payload) {
+    const targetEnemy = this.enemies
+      .getChildren()
+      .find((e) => e.uniqueId === payload.uniqueId);
+    if (targetEnemy && targetEnemy.active) {
+      targetEnemy.hp -= payload.damage; // 체력 깎기
+
+      // 시각 효과 (깜빡임)
+      targetEnemy.setTint(0xff0000);
+      this.time.delayedCall(100, () => targetEnemy.clearTint());
+
+      // 체력바 갱신 (이미 update에서 그려지고 있다면 자동 반영되겠지만, 강제 갱신 필요 시 여기서)
+    }
   }
 
   summonUnit() {
@@ -2517,6 +2702,10 @@ class GameScene extends Phaser.Scene {
     unit.lastFired = 0;
     unit.gridX = gx;
     unit.gridY = gy;
+
+    // [★신규] 유닛에게 고유 주민번호(ID) 부여 (중복 방지용)
+    // 내 소켓ID + 시간 + 랜덤숫자 조합으로 절대 안 겹치게 만듦
+    unit.myUniqueId = `${socket.id}_${Date.now()}_${Math.random()}`;
 
     // ==============================================================
     // [핵심 수정] 마우스 오버 이벤트 (색상 로직 재확인)
@@ -2876,12 +3065,26 @@ class GameScene extends Phaser.Scene {
       unit.gridX = -1;
       unit.gridY = -1;
       this.selectUnit(unit);
+
+      // ============================================================
+      // [★신규] 멀티플레이라면 서버에 "유닛 배치" 신호 전송
+      // ============================================================
+      if (this.isMultiplayer) {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "place_unit",
+          payload: {
+            key: unit.unitKey,
+            tier: unit.dataVal.tier,
+            x: unit.x,
+            y: unit.y,
+            ownerId: socket.id,
+            uniqueId: unit.myUniqueId,
+          },
+        });
+      }
       return;
     }
-
-    // ----------------------------------------------------------------
-    // 2. 대기실(그리드) 배치 로직 (★버그 수정 핵심 구간★)
-    // ----------------------------------------------------------------
 
     // 드롭된 위치의 그리드 좌표 계산
     const dropGX = Math.floor(
@@ -2900,6 +3103,14 @@ class GameScene extends Phaser.Scene {
     ) {
       this.returnUnitToOriginalPos(unit);
       return;
+    }
+
+    if (unit.gridX === -1 && this.isMultiplayer) {
+      socket.emit("sync_action", {
+        room: this.myRoomName,
+        type: "unit_removed", // 삭제 신호
+        payload: { uniqueId: unit.myUniqueId },
+      });
     }
 
     // 데이터(gridState)와 실제 유닛(Physics) 이중 체크
@@ -2944,6 +3155,70 @@ class GameScene extends Phaser.Scene {
     } else {
       // (C) 자기 자신 위면 -> 제자리 (Snap)
       this.returnUnitToOriginalPos(unit);
+    }
+  }
+
+  createPartnerUnit(data) {
+    if (data.ownerId === socket.id) return;
+
+    // 1. 이미 존재하는 유닛인지 ID로 확인
+    const existingUnit = this.units
+      .getChildren()
+      .find((u) => u.myUniqueId === data.uniqueId);
+
+    if (existingUnit) {
+      // 2. 이미 있으면? -> 위치만 쓱 이동시킴 (자연스럽게)
+      this.tweens.add({
+        targets: existingUnit,
+        x: data.x,
+        y: data.y,
+        duration: 200, // 0.2초 동안 부드럽게 이동
+        ease: "Power2",
+      });
+      return; // 새로 만들지 않고 종료
+    }
+
+    // 3. 없으면? -> 새로 생성 (기존 로직)
+    const unit = this.add.sprite(data.x, data.y, data.key);
+    unit.setDisplaySize(80, 85);
+
+    unit.unitKey = data.key;
+    unit.dataVal = UNIT_DATA[data.key];
+    unit.lastFired = 0;
+    unit.gridX = -1;
+    unit.gridY = -1;
+    unit.myUniqueId = data.uniqueId; // ID 저장 필수
+
+    unit.setInteractive();
+    unit.setAlpha(0.9);
+    // 파트너 유닛은 내가 드래그 못하게 설정 (중요)
+    this.input.setDraggable(unit, false);
+
+    this.units.add(unit);
+
+    // 파트너 텍스트
+    const label = this.add
+      .text(data.x, data.y - 50, "Partner", {
+        fontSize: "12px",
+        color: "#00ff00",
+        stroke: "#000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+
+    // 간단하게 유닛 객체에 라벨을 붙여서 관리 (나중에 삭제할 때 편함)
+    unit.partnerLabel = label;
+  }
+
+  // [신규] 파트너 유닛 삭제 함수
+  removePartnerUnit(targetId) {
+    const targetUnit = this.units
+      .getChildren()
+      .find((u) => u.myUniqueId === targetId);
+    if (targetUnit) {
+      // 라벨이 있으면 같이 삭제
+      if (targetUnit.partnerLabel) targetUnit.partnerLabel.destroy();
+      targetUnit.destroy();
     }
   }
 
@@ -3475,13 +3750,22 @@ class GameScene extends Phaser.Scene {
     e.setTint(0xff0000);
     this.time.delayedCall(100, () => e.clearTint());
 
+    // [★신규] 데미지 입혔음을 서버에 전송 (체력바 동기화용)
+    if (this.isMultiplayer) {
+      socket.emit("sync_action", {
+        room: this.myRoomName,
+        type: "enemy_damage",
+        payload: { uniqueId: e.uniqueId, damage: dmg },
+      });
+    }
+
     if (e.hp <= 0) {
+      if (!e.active) return;
       if (e.hpBar) e.hpBar.destroy();
       e.destroy();
 
       // [★ 골드 보상 로직 업데이트 ★]
       let reward = 0;
-
       if (e.isBoss) {
         reward = 1000;
         this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
@@ -3500,6 +3784,15 @@ class GameScene extends Phaser.Scene {
 
       this.gold += reward;
       this.txtGold.setText(`GOLD: ${this.gold}`);
+
+      // 적 죽음 전송
+      if (this.isMultiplayer) {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "enemy_died",
+          payload: { uniqueId: e.uniqueId, isBoss: e.isBoss }, // 보스 여부도 보냄
+        });
+      }
     }
 
     // 애니메이션이 재생 중이라면 끝날 때까지 기다림
@@ -3919,22 +4212,22 @@ class GameScene extends Phaser.Scene {
     // 5. Firebase 저장 시도
     if (db && currentPlayerName) {
       try {
-        // [핵심 수정] 저장할 이름 결정 로직
         let saveName = currentPlayerName;
 
-        // 멀티 모드이고 파트너 이름이 있다면 "내이름 & 파트너" 형식으로 저장
-        if (currentMode === "multi" && partnerName) {
+        // "멀티 모드"이고 "파트너 이름이 있을 때"만 이름을 합침
+        if (currentMode === "multi" && partnerName !== "") {
           saveName = `${currentPlayerName} & ${partnerName}`;
+          // 예: "탄지로 & 네즈코"
         }
 
-        // 저장 (컬렉션 이름은 getScoreCollectionName이 알아서 'scores_multi'로 줌)
+        // 저장
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("시간 초과")), 3000)
         );
 
         await Promise.race([
           addDoc(collection(db, getScoreCollectionName(currentMode)), {
-            name: saveName, // [수정된 이름 저장]
+            name: saveName,
             round: this.round,
             createdAt: new Date().toISOString(),
           }),
@@ -3964,7 +4257,13 @@ const config = {
 
 // === 모드별 데이터 로딩 함수 (MenuScene에서도 사용) ===
 async function loadDataForMode(mode) {
-  const modulePath = mode === "hard" ? "./data.hard.js" : "./data.normal.js";
+  let modulePath = "./data.normal.js";
+
+  if (mode === "hard") {
+    modulePath = "./data.hard.js";
+  } else if (mode === "multi") {
+    modulePath = "./data.multi.js";
+  }
 
   const dataModule = await import(modulePath);
 
@@ -3995,11 +4294,8 @@ async function bootstrap() {
         return;
       }
 
-      // [추가] 파트너 이름 가져오기 (없으면 빈칸)
-      const pName = partnerInput.value.trim();
-
       currentPlayerName = name;
-      partnerName = pName; // 전역 변수에 저장
+      partnerName = "";
 
       overlay.style.display = "none";
       game.scene.start("MenuScene");
