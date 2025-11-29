@@ -436,15 +436,16 @@ export const UNIT_DATA = {
   },
 
   // ===============================================================
-  // [Tier 6] 신화 평균 DPS: ~55,000 (T5의 5.5배)
-  // * 최상위 유닛들은 확실한 보상감을 위해 배율을 조금 더 높임
+  // [Tier 6] 신화 (T5의 5.5배) - Target DPS: 54,000 ~ 59,000
+  // * 사거리(Range)가 길면 공속(Speed)을 느리게 조정 (한방 딜 ↑)
+  // * 사거리(Range)가 짧으면 공속(Speed)을 빠르게 조정 (연타 딜 ↑)
   // ===============================================================
   tanjiro_final: {
     name: "탄지로(13형)",
     tier: 6,
     color: 0xff4757,
-    dmg: 22000,
-    speed: 400, // 55,000 DPS
+    dmg: 47600,
+    speed: 850, // [DPS: 56,000] 사거리 김(210)
     range: 210,
     type: "tanjiro_13th",
     cutscene: "tanjiro_final_cutscene",
@@ -453,8 +454,8 @@ export const UNIT_DATA = {
     name: "교메이(반점)",
     tier: 6,
     color: 0x2d3436,
-    dmg: 37000,
-    speed: 670, // ~55,223 DPS
+    dmg: 58000,
+    speed: 1000, // [DPS: 58,000] 사거리 매우 김(230)
     range: 230,
     type: "gyomei_mark_stone",
     cutscene: "gyomei_mark_cutscene",
@@ -463,8 +464,8 @@ export const UNIT_DATA = {
     name: "요리이치",
     tier: 6,
     color: 0xffd700,
-    dmg: 28000,
-    speed: 500, // 56,000 DPS
+    dmg: 50400,
+    speed: 900, // [DPS: 56,000] 사거리 김(220)
     range: 220,
     type: "yoriichi_sun",
     cutscene: "yoriichi_cutscene",
@@ -473,28 +474,28 @@ export const UNIT_DATA = {
     name: "이노스케(산의 왕)",
     tier: 6,
     color: 0x3498db,
-    dmg: 24000,
-    speed: 430, // ~55,813 DPS
-    range: 210,
+    dmg: 19600,
+    speed: 350, // [DPS: 56,000] 사거리 짧음(150)
+    range: 150, // 근접 컨셉 강화
     type: "inosuke_king_beast",
     cutscene: "inosuke_king_cutscene",
   },
   zenitsu_7th: {
     name: "젠이츠(화뢰신)",
     tier: 6,
-    color: 0xfff200, // 번개
-    dmg: 22000,
-    speed: 400, // 55,000 DPS (공속 매우 빠름)
-    range: 220,
+    color: 0xfff200,
+    dmg: 17100,
+    speed: 300, // [DPS: 57,000] 사거리 짧음(160)
+    range: 160, // 순간이동 컨셉
     type: "zenitsu_7th_form",
     cutscene: "zenitsu_7th_cutscene",
   },
   giyu_calm: {
     name: "기유(잔잔한 물)",
     tier: 6,
-    color: 0x74b9ff, // 물색
-    dmg: 44000,
-    speed: 800, // 55,000 DPS (한방 묵직)
+    color: 0x74b9ff,
+    dmg: 53200,
+    speed: 950, // [DPS: 56,000] 사거리 김(210)
     range: 210,
     type: "giyu_dead_calm",
     cutscene: "giyu_calm_cutscene",
@@ -502,44 +503,71 @@ export const UNIT_DATA = {
   sanemi_wind_god: {
     name: "사네미(바람의 신)",
     tier: 6,
-    color: 0x55efc4, // 바람색
-    dmg: 29000,
-    speed: 520, // ~55,700 DPS
+    color: 0x55efc4,
+    dmg: 43500,
+    speed: 750, // [DPS: 58,000] 사거리 보통(200)
     range: 200,
     type: "sanemi_wind_god",
     cutscene: "sanemi_god_cutscene",
   },
 
+  // [신규] 오바나이&미츠리 (커플)
+  love_snake_couple: {
+    name: "오바나이&미츠리",
+    tier: 6,
+    color: 0xffa502,
+    dmg: 28000,
+    speed: 500, // [DPS: 56,000] 사거리 약간 짧음(180)
+    range: 180,
+    type: "love_snake_couple_attack",
+    cutscene: "love_snake_cutscene",
+  },
+
+  // [신규] 무이치로(내비세) - 스나이퍼 컨셉
+  muichiro_transparent: {
+    name: "무이치로(내비세)",
+    tier: 6,
+    color: 0xdfe6e9,
+    dmg: 82500,
+    speed: 1500, // [DPS: 55,000] 사거리 압도적(260)
+    range: 260,
+    type: "muichiro_transparent_world",
+    cutscene: "muichiro_trans_cutscene",
+  },
+
   // ========================================================
-  // [HIDDEN UNITS]
+  // [HIDDEN UNITS] (일반 T6 대비 1.1~1.2배 강력함)
+  // Target DPS: 62,000 ~ 68,000
   // ========================================================
   yoriichi_zero: {
     name: "요리이치 영식",
-    tier: 5,
+    tier: 5, // T5 히든 (T5 평균 10,000 대비 1.2배)
     color: 0x7f8c8d,
-    dmg: 4200, // T5급 (10,500 DPS) - 히든이라 살짝 높음
-    speed: 400,
+    dmg: 4800,
+    speed: 400, // [DPS: 12,000] T5 최상위
     range: 110,
     type: "yoriichi_doll",
     cutscene: "yoriichi_zero_cutscene",
   },
   rengoku_smile: {
     name: "렌고쿠(마지막 미소)",
-    tier: 5,
-    color: 0xffa502, // 오렌지색
-    dmg: 8800,
-    speed: 800, // 11,000 DPS
+    tier: 5, // T5 히든
+    color: 0xffa502,
+    dmg: 10000,
+    speed: 800, // [DPS: 12,500] T5 최상위
     range: 180,
     type: "rengoku_smile_effect",
     cutscene: "rengoku_smile_cutscene",
   },
+
+  // [히든 T6]
   koku: {
     name: "코쿠시보(상현1)",
     tier: 6,
     color: 0xffd700,
-    dmg: 36000, // T6급 (56,666 DPS)
-    speed: 600,
-    range: 220,
+    dmg: 54400,
+    speed: 850, // [DPS: 64,000] 사거리 김(240)
+    range: 240,
     type: "kokushibo_moon",
     cutscene: "koku_cutscene",
   },
@@ -547,9 +575,9 @@ export const UNIT_DATA = {
     name: "탄지로(오니의 왕)",
     tier: 6,
     color: 0x2d3436,
-    dmg: 40000, // 58,461 DPS
-    speed: 650,
-    range: 180,
+    dmg: 29250,
+    speed: 450, // [DPS: 65,000] 사거리 짧음(160)
+    range: 160,
     type: "tanjiro_demon_king",
     cutscene: "tanjiro_king_cutscene",
   },
@@ -557,9 +585,9 @@ export const UNIT_DATA = {
     name: "쌍둥이의 운명",
     tier: 6,
     color: 0xb33939,
-    dmg: 55000,
-    speed: 500,
-    range: 240,
+    dmg: 60000,
+    speed: 400,
+    range: 220,
     type: "twin_destiny_combo",
     cutscene: "twin_destiny_cutscene",
   },
@@ -567,11 +595,23 @@ export const UNIT_DATA = {
     name: "렌고쿠(마음의 불꽃)",
     tier: 6,
     color: 0xff4757,
-    dmg: 44000,
-    speed: 800, // 60,000 DPS
-    range: 200,
+    dmg: 56700,
+    speed: 900, // [DPS: 63,000] 사거리 김(210)
+    range: 210,
     type: "rengoku_legend_fire",
     cutscene: "rengoku_legend_cutscene",
+  },
+
+  // [히든 T6] 네즈코
+  nezuko_sun: {
+    name: "네즈코(태양의 극복)",
+    tier: 6,
+    color: 0xff7675,
+    dmg: 37200,
+    speed: 600, // [DPS: 62,000] 사거리 적당(190)
+    range: 190,
+    type: "nezuko_sun_conqueror",
+    cutscene: "nezuko_sun_cutscene",
   },
 };
 
@@ -734,6 +774,16 @@ export const RECIPES = [
   // 사네미(반점) + 카나에(꽃의영) = 사네미(바람의 신)
   { a: "sanemi_mark", b: "kanae_spirit", result: "sanemi_wind_god" },
 
+  // [T6] 오바나이(반점)(T5) + 미츠리(반점)(T5) = 오바나이&미츠리
+  // 설명: 서로의 마음을 확인하고 함께 싸우는 두 지주 (커플 조합)
+  // * 현재 사용처가 없는 오바나이와 미츠리를 구제하는 핵심 조합
+  { a: "obanai_mark", b: "mitsuri_mark", result: "love_snake_couple" },
+
+  // [T6] 무이치로(반점)(T5) + 텐겐(악보)(T5) = 무이치로(내비세)
+  // 설명: 텐겐의 전투 센스(악보)를 전수받아 내비세에 도달 (속도+안개)
+  // * 젠이츠 재료로만 쓰이던 텐겐, 교메이 재료로만 쓰이던 무이치로 활용
+  { a: "muichiro_mark", b: "tengen_score", result: "muichiro_transparent" },
+
   // =============================================================
   // [HIDDEN] 히든 조합법
   // =============================================================
@@ -759,6 +809,16 @@ export const RECIPES = [
     a: "rengoku_smile",
     b: "tanjiro_sun",
     result: "rengoku_legend",
+    hidden: true,
+  },
+
+  // [히든] 네즈코(각성)(T5) + 타마요&유시로(T5) = 네즈코(태양의 극복)
+  // 설명: 타마요의 약으로 태양을 극복한 네즈코
+  // * T6 진입이 불가능했던 타마요&유시로를 히든 재료로 격상
+  {
+    a: "nezuko_awake",
+    b: "tamayo_yushiro",
+    result: "nezuko_sun",
     hidden: true,
   },
 ];

@@ -520,6 +520,28 @@ class BootScene extends Phaser.Scene {
       { frameWidth: 64, frameHeight: 64 }
     );
 
+    // 13. 오바나이&미츠리 (사랑과 뱀의 호흡)
+    this.load.spritesheet("attack_love_snake", "love_snake_attack.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
+
+    // 14. 무이치로 (내비세 - 투명한 세계)
+    this.load.spritesheet(
+      "attack_muichiro_trans",
+      "muichiro_trans_attack.png",
+      {
+        frameWidth: 64,
+        frameHeight: 64,
+      }
+    );
+
+    // 15. 네즈코 (태양의 극복 - 붉은 태양)
+    this.load.spritesheet("attack_nezuko_sun", "nezuko_sun_attack.png", {
+      frameWidth: 50, // 8
+      frameHeight: 50,
+    });
+
     // 유닛 이미지 설정
     for (const key in UNIT_DATA) {
       this.load.image(key, `${key}.png`);
@@ -1543,6 +1565,44 @@ class GameScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+    // 13. 오바나이&미츠리
+    if (!this.anims.exists("anim_love_snake")) {
+      this.anims.create({
+        key: "anim_love_snake",
+        frames: this.anims.generateFrameNumbers("attack_love_snake", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 16,
+        repeat: 0,
+      });
+    }
+
+    // 14. 무이치로 (내비세)
+    if (!this.anims.exists("anim_muichiro_trans")) {
+      this.anims.create({
+        key: "anim_muichiro_trans",
+        frames: this.anims.generateFrameNumbers("attack_muichiro_trans", {
+          start: 0,
+          end: 8,
+        }),
+        frameRate: 20,
+        repeat: 0,
+      });
+    }
+
+    // 15. 네즈코 (태양의 극복)
+    if (!this.anims.exists("anim_nezuko_sun")) {
+      this.anims.create({
+        key: "anim_nezuko_sun",
+        frames: this.anims.generateFrameNumbers("attack_nezuko_sun", {
+          start: 0,
+          end: 7,
+        }),
+        frameRate: 10,
+        repeat: 0,
+      });
+    }
 
     // 배경 클릭 시 초기화
     this.bg.on("pointerdown", () => {
@@ -1760,6 +1820,16 @@ class GameScene extends Phaser.Scene {
           .rectangle(cx, cy, this.cellSize - 4, this.cellSize - 4, 0x222222)
           .setStrokeStyle(1, 0x555555);
       }
+      const gridLabel = this.add.text(250, 280, "유닛 대기실\n   [조합창]", {
+        fontFamily: "Cafe24ClassicType",
+        fontSize: "34px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      });
+
+      gridLabel.setOrigin(0.5);
+      gridLabel.setAlpha(0.1);
+      gridLabel.setDepth(0);
     }
   }
 
@@ -2529,6 +2599,7 @@ class GameScene extends Phaser.Scene {
     // [보스 등장 로직] 라운드별 보스 교체
     if (isBossRound) {
       this.bossSpawned = true;
+      isBoss = true;
       moveSpeed = 3;
 
       if (this.round === 10) {
@@ -3756,6 +3827,27 @@ class GameScene extends Phaser.Scene {
       animFrameRate = 14;
       bulletSpeed = 500;
     }
+    // 13. 오바나이&미츠리 (커플)
+    else if (type === "love_snake_couple_attack") {
+      bulletKey = "attack_love_snake";
+      animKey = "anim_love_snake";
+      animFrameRate = 16;
+      bulletSpeed = 600;
+    }
+    // 14. 무이치로 (내비세)
+    else if (type === "muichiro_transparent_world") {
+      bulletKey = "attack_muichiro_trans";
+      animKey = "anim_muichiro_trans";
+      animFrameRate = 20;
+      bulletSpeed = 700;
+    }
+    // 15. 네즈코 (태양의 극복 - 히든)
+    else if (type === "nezuko_sun_conqueror") {
+      bulletKey = "attack_nezuko_sun";
+      animKey = "anim_nezuko_sun";
+      animFrameRate = 12;
+      bulletSpeed = 500;
+    }
 
     // 2. 투사체 생성
     const b = this.bullets.create(unit.x, unit.y, bulletKey);
@@ -3864,6 +3956,9 @@ class GameScene extends Phaser.Scene {
 
     if (e.hp <= 0) {
       if (!e.active) return;
+      // [디버깅용 로그 추가]
+      console.log("적 사망! 이름:", e.name, "보스여부:", e.isBoss);
+
       if (e.hpBar) e.hpBar.destroy();
       e.destroy();
 
