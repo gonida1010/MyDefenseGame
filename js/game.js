@@ -34,7 +34,13 @@ console.log("Firebase Connected!");
 
 // === 모드별 점수 컬렉션 이름 ===
 function getScoreCollectionName(mode) {
-  return mode === "hard" ? "scores_hard" : "scores_normal";
+  if (mode === "hard") {
+    return "scores_hard";
+  } else if (mode === "multi") {
+    return "scores_multi"; // [추가] 협동 모드 전용 컬렉션
+  } else {
+    return "scores_normal";
+  }
 }
 
 // === 모드별 랭킹 텍스트 가져오기 (MenuScene에서 사용) ===
@@ -70,8 +76,10 @@ async function fetchLeaderboardText(mode) {
 // === HTML UI (대원 등록 화면만) ===
 const overlay = document.getElementById("login-overlay");
 const nicknameInput = document.getElementById("nickname");
+const partnerInput = document.getElementById("partner-nickname");
 const startBtn = document.getElementById("start-btn");
 // let currentPlayerName = "이름없음";
+let partnerName = ""; // 파트너 이름 저장용
 
 // 기존 startBtn 삭제하고 두 개의 버튼을 가져옵니다.
 const btnNormal = document.getElementById("btn-normal");
@@ -112,12 +120,12 @@ class BootScene extends Phaser.Scene {
     this.load.setPath("assets/images");
     // this.load.setPath("/MyDefenseGame/assets/images");
 
-    // 메인 메뉴 배경 이미지 로드
+    // 메인 메뉴 배경 이미지 로드(스토리,지옥,협동)
     this.load.image("menu_bg", "background2.png");
     this.load.image("game_bg", "background3.png");
-
     this.load.image("mode_normal", "background2.png");
     this.load.image("mode_hard", "mode_hard.png");
+    this.load.image("mode_multi", "mode_multi.png");
 
     this.load.image("game_clear_bg", "game_clear.png");
 
@@ -506,13 +514,13 @@ class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    // 1. 배경 이미지를 변수(this.bg)에 담아서 나중에 바꿀 수 있게 함
+    // 1. 배경 (변수에 담아서 교체 가능하게 함)
     this.bg = this.add
       .image(640, 360, "menu_bg")
       .setOrigin(0.5)
-      .setDisplaySize(1280, 720); // 화면 꽉 차게
+      .setDisplaySize(1280, 720);
 
-    // 2. 타이틀 (약간 위로 올림)
+    // 2. 메인 타이틀
     this.add
       .text(640, 80, "귀멸의 칼날\n랜덤 디펜스", {
         fontFamily: "Cafe24ClassicType",
@@ -537,103 +545,115 @@ class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // 4. 모드 라벨 (디자인 대폭 강화)
-    const labelStyle = {
+    // 4. 모드 설명 텍스트 스타일
+    const style = {
       fontFamily: "Cafe24ClassicType",
-      fontSize: "40px",
+      fontSize: "32px",
       fontStyle: "bold",
       align: "center",
-      stroke: "#000000",
+      stroke: "#000",
       strokeThickness: 6,
       shadow: { offsetX: 2, offsetY: 2, color: "#000", blur: 4, fill: true },
     };
 
-    // 왼쪽 (일반) 텍스트
-    this.normalLabel = this.add
-      .text(320, 360, "스토리 모드\n(라운드90)", {
-        ...labelStyle,
-        color: "#3498db",
-      })
+    // [화면 3분할 텍스트 배치]
+    // (1) 스토리 (왼쪽 구역: x=213 정도)
+    this.labelNormal = this.add
+      .text(250, 260, "스토리\n(Normal)", { ...style, color: "#3498db" })
       .setOrigin(0.5);
 
-    // 오른쪽 (하드) 텍스트
-    this.hardLabel = this.add
-      .text(960, 360, "지옥 모드\n(랭커 도전)\n무한 라운드", {
-        ...labelStyle,
-        color: "#e74c3c",
-      })
+    // (2) 지옥 (중앙 구역: x=640)
+    this.labelHard = this.add
+      .text(640, 260, "지옥\n(Hard)", { ...style, color: "#e74c3c" })
       .setOrigin(0.5);
 
-    // 6. 랭킹 타이틀 (중앙 하단)
+    // (3) 협동 (오른쪽 구역: x=1066 정도)
+    this.labelMulti = this.add
+      .text(1030, 260, "협동\n(Challenge)", { ...style, color: "#9b59b6" })
+      .setOrigin(0.5);
+
+    // 5. 랭킹 타이틀 및 리스트 (하단 중앙으로 배치)
     this.modeRankTitle = this.add
-      .text(640, 250, "스토리 모드 랭킹", {
-        fontFamily: "Cafe24ClassicType",
+      .text(640, 380, "=== 랭킹 ===", {
+        ...style,
         fontSize: "24px",
         color: "#f1c40f",
-        stroke: "#000",
-        strokeThickness: 4,
       })
       .setOrigin(0.5);
-
-    // 7. 랭킹 텍스트 리스트
     this.leaderboardText = this.add
-      .text(640, 290, "기록을 불러오는 중...", {
+      .text(640, 420, "로딩중...", {
         fontFamily: "Cafe24ClassicType",
-        fontSize: "20px",
+        fontSize: "18px",
         color: "#fff",
         align: "center",
-        lineSpacing: 12,
+        lineSpacing: 8,
         stroke: "#000",
         strokeThickness: 3,
       })
       .setOrigin(0.5, 0);
 
-    // === 클릭/호버 영역 설정 ===
-    const leftZone = this.add
-      .zone(0, 0, 640, 720)
+    // 6. [중요] 클릭 영역 (Zone) 3분할
+    // 화면 너비 1280을 3등분 -> 약 426px 씩
+    const zoneNormal = this.add
+      .zone(0, 0, 426, 720)
+      .setOrigin(0)
+      .setInteractive({ useHandCursor: true });
+    const zoneHard = this.add
+      .zone(426, 0, 426, 720)
+      .setOrigin(0)
+      .setInteractive({ useHandCursor: true });
+    const zoneMulti = this.add
+      .zone(852, 0, 428, 720)
       .setOrigin(0)
       .setInteractive({ useHandCursor: true });
 
-    const rightZone = this.add
-      .zone(640, 0, 640, 720)
-      .setOrigin(0)
-      .setInteractive({ useHandCursor: true });
+    // 7. 이벤트 연결
+    zoneNormal.on("pointerover", () => this.setMode("normal"));
+    zoneHard.on("pointerover", () => this.setMode("hard"));
+    zoneMulti.on("pointerover", () => this.setMode("multi"));
 
-    // 마우스 올리면 배경 및 텍스트 변경
-    leftZone.on("pointerover", () => this.setMode("normal"));
-    rightZone.on("pointerover", () => this.setMode("hard"));
+    // 클릭 시 게임 시작 함수 호출
+    const startFunc = () => this.startSelectedMode();
+    zoneNormal.on("pointerdown", startFunc);
+    zoneHard.on("pointerdown", startFunc);
+    zoneMulti.on("pointerdown", startFunc);
 
-    leftZone.on("pointerdown", () => this.startSelectedMode());
-    rightZone.on("pointerdown", () => this.startSelectedMode());
-
-    this.setMode(currentMode);
+    // 초기 설정
+    this.setMode(currentMode || "normal");
   }
 
-  // 모드 변경 시 배경 전체 교체 및 텍스트 효과
+  // 모드 변경 시 화면 효과
   async setMode(mode) {
-    // 1. 현재 모드 상태 업데이트
     if (currentMode === mode) return;
     currentMode = mode;
 
-    // 2. 목표 텍스처 및 텍스트 결정
-    let targetTexture = "";
-    let rankTitleText = "";
+    // 1. 텍스트 효과 초기화
+    const resetScale = (obj) => obj.setScale(1).setAlpha(0.5);
+    resetScale(this.labelNormal);
+    resetScale(this.labelHard);
+    resetScale(this.labelMulti);
+
+    let bgTexture = "menu_bg";
+    let title = "";
 
     if (mode === "normal") {
-      targetTexture = "mode_normal";
-      rankTitleText = "=== 일반 모드 랭킹 ===";
-
-      this.normalLabel.setAlpha(1).setScale(1.2);
-      this.hardLabel.setAlpha(0.5).setScale(1.0);
+      this.labelNormal.setScale(1.3).setAlpha(1);
+      bgTexture = "mode_normal";
+      title = "=== 스토리 모드 랭킹 ===";
+    } else if (mode === "hard") {
+      this.labelHard.setScale(1.3).setAlpha(1);
+      bgTexture = "mode_hard";
+      title = "=== 지옥 모드 랭킹 ===";
     } else {
-      targetTexture = "mode_hard";
-      rankTitleText = "=== 하드 모드 랭킹 ===";
-
-      this.normalLabel.setAlpha(0.5).setScale(1.0);
-      this.hardLabel.setAlpha(1).setScale(1.2);
+      this.labelMulti.setScale(1.3).setAlpha(1);
+      bgTexture = "mode_multi";
+      title = "=== 협동 챌린지 랭킹 ===";
     }
 
-    this.modeRankTitle.setText(rankTitleText);
+    // 타이틀 텍스트 업데이트
+    this.modeRankTitle.setText(title);
+
+    // 3. 배경 전환 애니메이션
     this.tweens.killTweensOf(this.bg);
     this.tweens.add({
       targets: this.bg,
@@ -641,7 +661,7 @@ class MenuScene extends Phaser.Scene {
       duration: 150,
       ease: "Power1",
       onComplete: () => {
-        this.bg.setTexture(targetTexture);
+        this.bg.setTexture(bgTexture);
         this.bg.setDisplaySize(1280, 720);
         this.tweens.add({
           targets: this.bg,
@@ -652,15 +672,13 @@ class MenuScene extends Phaser.Scene {
       },
     });
 
-    // 4. 랭킹 데이터 로드 (비동기)
+    // 4. 랭킹 로드
     const text = await fetchLeaderboardText(mode);
-    // 애니메이션이 끝날 때쯤 텍스트가 업데이트되도록 약간의 딜레이를 줄 수도 있지만,
-    // 일단은 데이터가 로드되는 대로 바로 뜨게 합니다.
     this.leaderboardText.setText(text);
   }
 
   async startSelectedMode() {
-    // 선택된 모드 데이터 로딩 후 게임 시작
+    console.log(`${currentMode} 모드 시작!`);
     await loadDataForMode(currentMode);
     this.scene.start("GameScene");
   }
@@ -3831,17 +3849,25 @@ class GameScene extends Phaser.Scene {
     btnRestart.on("pointerover", () => btnRestart.setFillStyle(0xcccccc));
     btnRestart.on("pointerout", () => btnRestart.setFillStyle(0xffffff));
 
-    // 5. Firebase 저장 시도 (실패해도 게임이 멈추지 않도록 예외처리)
+    // 5. Firebase 저장 시도
     if (db && currentPlayerName) {
       try {
-        // 3초 안에 저장 안 되면 포기 (무한 로딩 방지)
+        // [핵심 수정] 저장할 이름 결정 로직
+        let saveName = currentPlayerName;
+
+        // 멀티 모드이고 파트너 이름이 있다면 "내이름 & 파트너" 형식으로 저장
+        if (currentMode === "multi" && partnerName) {
+          saveName = `${currentPlayerName} & ${partnerName}`;
+        }
+
+        // 저장 (컬렉션 이름은 getScoreCollectionName이 알아서 'scores_multi'로 줌)
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("시간 초과")), 3000)
         );
 
         await Promise.race([
           addDoc(collection(db, getScoreCollectionName(currentMode)), {
-            name: currentPlayerName,
+            name: saveName, // [수정된 이름 저장]
             round: this.round,
             createdAt: new Date().toISOString(),
           }),
@@ -3852,11 +3878,9 @@ class GameScene extends Phaser.Scene {
         savingText.setColor("#00ff00");
       } catch (e) {
         console.error("저장 실패:", e);
-        savingText.setText("저장 실패 (인터넷/권한 확인)");
+        savingText.setText("저장 실패");
         savingText.setColor("#ff0000");
       }
-    } else {
-      savingText.setText("저장 안됨 (설정 확인 필요)");
     }
   }
 }
@@ -3893,24 +3917,24 @@ async function bootstrap() {
   // ★ HTML 버튼 클릭 이벤트 (이름 입력 -> 메뉴 이동) ★
   if (startBtn) {
     startBtn.addEventListener("click", () => {
-      // 1. 게임 로딩 체크
       if (!game) {
         alert("게임 로딩 중입니다...");
         return;
       }
 
-      // 2. 이름 유효성 검사
       const name = nicknameInput.value.trim();
       if (name.length < 1) {
         alert("이름을 입력해주세요!");
         return;
       }
 
-      // 3. 이름 저장 및 화면 전환
-      currentPlayerName = name;
-      overlay.style.display = "none"; // HTML 창 끄기
+      // [추가] 파트너 이름 가져오기 (없으면 빈칸)
+      const pName = partnerInput.value.trim();
 
-      // 4. MenuScene 시작 (여기서 모드를 고르게 됨)
+      currentPlayerName = name;
+      partnerName = pName; // 전역 변수에 저장
+
+      overlay.style.display = "none";
       game.scene.start("MenuScene");
     });
   }
