@@ -33,10 +33,95 @@
           placeholder="이름을 입력하세요"
           maxlength="8"
         />
+
         <button id="start-btn">임무 시작</button>
+
+        <button
+          id="guide-open-btn"
+          style="margin-top: 10px; background-color: #8e44ad"
+        >
+          게임 가이드 & 조합법
+        </button>
+      </div>
+    </div>
+
+    <div id="guide-modal" class="modal hidden">
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2>📜 게임 가이드</h2>
+
+        <div class="guide-section">
+          <h3>🎮 게임 방법</h3>
+          <p>
+            1. <strong>승리 조건:</strong> 90라운드 보스 '무잔' 처치 (스토리
+            모드)
+          </p>
+          <p>2. <strong>패배 조건:</strong> 몬스터 60마리 초과 시 게임 오버</p>
+          <p>3. <strong>조작법:</strong></p>
+          <ul>
+            <li>- <strong>클릭:</strong> 유닛 선택 (정보 확인)</li>
+            <li>- <strong>드래그:</strong> 유닛 이동 및 합치기</li>
+            <li>- <strong>Spacebar:</strong> 선택한 유닛 판매</li>
+          </ul>
+        </div>
+
+        <hr />
+
+        <div class="guide-section">
+          <h3>⚔️ 기초 조합법 (족보)</h3>
+          <div class="recipe-list">
+            <p><strong>[1티어] 재료</strong></p>
+            <ul>
+              <li>일반대원 + 까마귀 = <strong>탄지로</strong></li>
+              <li>까마귀 + 까마귀 = <strong>젠이츠</strong></li>
+              <li>일반대원 + 은 = <strong>이노스케</strong></li>
+              <li>은 + 은 = <strong>겐야</strong></li>
+              <li>
+                까마귀 + 은 = <strong>카나오</strong> / <strong>아오이</strong>
+              </li>
+            </ul>
+            <br />
+            <p><strong>[2티어 → 3티어]</strong></p>
+            <ul>
+              <li>탄지로 + 까마귀 = <strong>우로코다키</strong></li>
+              <li>탄지로 + 은 = <strong>네즈코(상자)</strong></li>
+              <li>젠이츠 + 일반 = <strong>쿠와지마</strong></li>
+              <li>이노스케 + 은 = <strong>하가네즈카</strong></li>
+              <li>카나오 + 은 = <strong>사비토</strong></li>
+            </ul>
+            <br />
+            <p style="color: #f1c40f; font-size: 14px">
+              ※ 더 높은 등급의 조합법은 게임 내
+              <strong>[조합법 보기]</strong> 버튼을 눌러 확인하세요!
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
     <script type="module" src="./js/game.js"></script>
+
+    <script>
+      const modal = document.getElementById("guide-modal");
+      const btn = document.getElementById("guide-open-btn");
+      const span = document.getElementsByClassName("close-btn")[0];
+
+      // 버튼 누르면 열기
+      btn.onclick = function () {
+        modal.style.display = "flex";
+      };
+
+      // X 누르면 닫기
+      span.onclick = function () {
+        modal.style.display = "none";
+      };
+
+      // 배경 누르면 닫기
+      window.onclick = function (event) {
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+    </script>
   </body>
 </html>
