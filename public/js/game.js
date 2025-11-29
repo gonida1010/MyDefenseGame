@@ -1,6 +1,3 @@
-// ===============================================================
-// 1. 모듈 가져오기 (Imports)
-// ===============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import {
   getFirestore,
@@ -13,7 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // ===============================================================
-// 2. 전역 변수 선언 (Global Variables)
+// 전역 변수 선언 (Global Variables)
 // ===============================================================
 let GAME_CONFIG;
 let UNIT_DATA;
@@ -28,60 +25,54 @@ let partnerName = "";
 let myRoomName = null;
 
 // ===============================================================
-// 3. Socket.IO 설정 및 이벤트 리스너
+// Socket.IO 설정 및 이벤트 리스너
 // ===============================================================
-const socket = io();
+let socket = null;
 
-// (1) 연결 확인
-socket.on("connect", () => {
-  console.log("✅ 서버 연결 성공! 내 ID:", socket.id);
-});
+// io 라이브러리가 로드되었는지 확인 (서버가 있을 때만 true)
+if (typeof io !== "undefined") {
+  socket = io();
 
-// (2) 매칭 대기 중 (waiting)
-socket.on("waiting", (data) => {
-  console.log("⏳ 대기열 등록됨");
-  // 메뉴 씬이 활성화된 상태라면 텍스트를 변경하는 등의 처리가 가능하지만,
-  // 여기서는 콘솔과 알림만 띄웁니다.
-  alert("다른 대원을 기다리고 있습니다...\n");
-});
+  // (1) 연결 확인
+  socket.on("connect", () => {
+    console.log("✅ 서버 연결 성공! 내 ID:", socket.id);
+  });
 
-// (3) 게임 시작 신호 (game_start)
-socket.on("game_start", (data) => {
-  console.log("⚔️ 매칭 성사! 게임 시작", data);
+  // (2) 매칭 대기 중
+  socket.on("waiting", (data) => {
+    console.log("⏳ 대기열 등록됨");
+    alert("다른 대원을 기다리고 있습니다...\n");
+  });
 
-  // 대기 화면(오버레이) 숨기기
-  const overlay = document.getElementById("login-overlay");
-  if (overlay) overlay.style.display = "none";
+  // (3) 게임 시작 신호
+  socket.on("game_start", (data) => {
+    console.log("⚔️ 매칭 성사! 게임 시작", data);
+    const overlay = document.getElementById("login-overlay");
+    if (overlay) overlay.style.display = "none";
 
-  // 1. 방 이름 저장 (중계할 때 필요)
-  myRoomName = data.room;
+    myRoomName = data.room;
 
-  // 2. 파트너 찾기 (내 ID가 아닌 사람)
-  const myId = socket.id;
-  const partner = data.players.find((p) => p.id !== myId);
+    const myId = socket.id;
+    const partner = data.players.find((p) => p.id !== myId);
 
-  if (partner) {
-    partnerName = partner.name;
-    console.log("내 동료:", partnerName);
-  } else {
-    partnerName = "";
-  }
+    if (partner) {
+      partnerName = partner.name;
+      console.log("내 동료:", partnerName);
+    } else {
+      partnerName = "";
+    }
 
-  // 3. 내가 방장(Host)인지 판별
-  // 플레이어 리스트의 첫 번째([0]) 사람이 방장 역할을 맡음
-  const isHost = data.players[0].id === myId;
-  console.log("나는 방장인가?", isHost);
-
-  // 4. 게임 씬 시작하면서 방장 정보와 방 이름을 넘겨줌
-  // (주의: 이미 MenuScene에 있다면 거기서 start를 호출하는 게 좋지만,
-  // 여기서 강제로 넘겨도 작동합니다.)
-  if (game) {
-    game.scene.start("GameScene", { isHost: isHost, roomName: myRoomName });
-  }
-});
+    const isHost = data.players[0].id === myId;
+    if (game) {
+      game.scene.start("GameScene", { isHost: isHost, roomName: myRoomName });
+    }
+  });
+} else {
+  console.log("⚠️ 서버를 찾을 수 없습니다. (싱글 플레이만 가능)");
+}
 
 // ===============================================================
-// 4. Firebase 설정 (Configuration)
+// Firebase 설정 (Configuration)
 // ===============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyC71OnYx9gKWl9KF3JnTRzY0efaoyX9DGM",
@@ -98,7 +89,7 @@ const db = getFirestore(app);
 console.log("Firebase Connected!");
 
 // ===============================================================
-// 5. 유틸리티 함수
+// 유틸리티 함수
 // ===============================================================
 
 // 모드별 점수 컬렉션 이름 가져오기
@@ -693,10 +684,13 @@ class MenuScene extends Phaser.Scene {
     this.setMode(currentMode || "normal");
 
     // 1. 대기 중 신호를 받으면 -> 화면에 대기 텍스트 표시
-    if (typeof socket !== "undefined") {
+    if (socket) {
+      socket.off("waiting");
+      socket.off("game_start");
+
+      // 1. 대기 중 신호를 받으면 -> 화면에 대기 텍스트 표시
       socket.on("waiting", (data) => {
         console.log("대기열 등록됨");
-        // 기존 랭킹 텍스트를 잠시 대기 문구로 변경
         this.modeRankTitle.setText("=== 매칭 대기 중 ===");
         this.leaderboardText.setText(
           "다른 대원을 기다리고 있습니다...\n(잠시만 기다려주세요)"
@@ -707,14 +701,12 @@ class MenuScene extends Phaser.Scene {
       socket.on("game_start", (data) => {
         console.log("매칭 성사! 게임 시작");
 
-        // 파트너 이름 찾기
         const myId = socket.id;
         const partner = data.players.find((p) => p.id !== myId);
         if (partner) {
-          partnerName = partner.name; // 전역 변수에 저장
+          partnerName = partner.name;
         }
 
-        // 진짜 게임 시작
         this.scene.start("GameScene");
       });
     }
@@ -782,12 +774,14 @@ class MenuScene extends Phaser.Scene {
     await loadDataForMode(currentMode);
 
     if (currentMode === "multi") {
-      // [멀티 모드] -> 바로 시작하지 않고 서버에 매칭 요청만 보냄
-      if (typeof socket !== "undefined") {
+      // 소켓이 연결되어 있는지 확인
+      if (socket && socket.connected) {
         socket.emit("join_game", { nickname: currentPlayerName });
-        // 여기서 scene.start를 하지 않습니다! (socket.on('game_start')가 해줌)
       } else {
-        alert("서버 연결 실패! 새로고침 해주세요.");
+        // 깃허브 페이지 등 서버가 없는 환경일 때
+        alert(
+          "서버와 연결되어 있지 않습니다.\n싱글 모드(스토리/지옥)만 플레이 가능합니다."
+        );
       }
     } else {
       // [싱글 모드] -> 바로 시작
@@ -1088,7 +1082,7 @@ class GameScene extends Phaser.Scene {
         key: "anim_rengoku",
         frames: this.anims.generateFrameNumbers("attack_rengoku", {
           start: 0,
-          end: 29,
+          end: 7,
         }),
         frameRate: 10,
         repeat: -1,
@@ -1481,7 +1475,7 @@ class GameScene extends Phaser.Scene {
         key: "anim_mitsuri_mark",
         frames: this.anims.generateFrameNumbers("attack_mitsuri_mark", {
           start: 0,
-          end: 8,
+          end: 11,
         }),
         frameRate: 15,
         repeat: -1,
@@ -2804,9 +2798,9 @@ class GameScene extends Phaser.Scene {
     unit.gridX = gx;
     unit.gridY = gy;
 
-    // [★신규] 유닛에게 고유 주민번호(ID) 부여 (중복 방지용)
-    // 내 소켓ID + 시간 + 랜덤숫자 조합으로 절대 안 겹치게 만듦
-    unit.myUniqueId = `${socket.id}_${Date.now()}_${Math.random()}`;
+    // [수정] 소켓이 있으면 소켓ID, 없으면 'guest'라는 이름으로 ID 생성
+    const ownerPrefix = socket && socket.id ? socket.id : "guest";
+    unit.myUniqueId = `${ownerPrefix}_${Date.now()}_${Math.random()}`;
 
     // ==============================================================
     // [핵심 수정] 마우스 오버 이벤트 (색상 로직 재확인)
@@ -3170,7 +3164,7 @@ class GameScene extends Phaser.Scene {
       // ============================================================
       // [★신규] 멀티플레이라면 서버에 "유닛 배치" 신호 전송
       // ============================================================
-      if (this.isMultiplayer) {
+      if (this.isMultiplayer && socket && socket.connected) {
         socket.emit("sync_action", {
           room: this.myRoomName,
           type: "place_unit",
