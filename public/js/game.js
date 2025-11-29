@@ -1,3 +1,24 @@
+const socket = io();
+// [신규] 서버로부터 "게임 시작" 신호를 받았을 때
+socket.on("game_start", (data) => {
+  console.log("⚔️ 매칭 성공! 게임 시작!", data);
+  const overlay = document.getElementById("login-overlay");
+  overlay.style.display = "none";
+
+  // 파트너 이름 찾기 (내 아이디가 아닌 사람)
+  const myId = socket.id;
+  const partner = data.players.find((p) => p.id !== myId);
+  if (partner) {
+    partnerName = partner.name;
+    console.log("동료:", partnerName);
+  }
+  game.scene.start("MenuScene");
+});
+socket.on("waiting", (data) => {
+  console.log("매칭 대기 중...");
+  alert("다른 대원을 기다리고 있습니다...");
+});
+
 // game.js 파일
 let GAME_CONFIG;
 let UNIT_DATA;
@@ -100,15 +121,20 @@ async function tryStartGame(selectedMode) {
     return;
   }
 
-  // 3. 데이터 설정 및 씬 시작
+  // 3. 공통 설정 (이름 저장, 데이터 로드)
   currentPlayerName = name;
-  currentMode = selectedMode; // 모드 설정
+  currentMode = selectedMode;
 
   console.log(`${selectedMode} 모드로 데이터 로딩 중...`);
-  await loadDataForMode(selectedMode); // ★ 선택한 모드 데이터 로드
+  await loadDataForMode(selectedMode);
 
-  overlay.style.display = "none"; // 로그인창 숨김
-  game.scene.start("MenuScene"); // 메뉴 씬으로 이동
+  if (selectedMode === "multi") {
+    console.log("서버에 매칭 요청 보냄...");
+    socket.emit("join_game", { nickname: name });
+  } else {
+    overlay.style.display = "none";
+    game.scene.start("MenuScene");
+  }
 }
 
 // Scene 1: Boot
@@ -620,6 +646,33 @@ class MenuScene extends Phaser.Scene {
 
     // 초기 설정
     this.setMode(currentMode || "normal");
+
+    // 1. 대기 중 신호를 받으면 -> 화면에 대기 텍스트 표시
+    if (typeof socket !== "undefined") {
+      socket.on("waiting", (data) => {
+        console.log("대기열 등록됨");
+        // 기존 랭킹 텍스트를 잠시 대기 문구로 변경
+        this.modeRankTitle.setText("=== 매칭 대기 중 ===");
+        this.leaderboardText.setText(
+          "다른 대원을 기다리고 있습니다...\n(잠시만 기다려주세요)"
+        );
+      });
+
+      // 2. 게임 시작 신호를 받으면 -> GameScene으로 이동
+      socket.on("game_start", (data) => {
+        console.log("매칭 성사! 게임 시작");
+
+        // 파트너 이름 찾기
+        const myId = socket.id;
+        const partner = data.players.find((p) => p.id !== myId);
+        if (partner) {
+          partnerName = partner.name; // 전역 변수에 저장
+        }
+
+        // 진짜 게임 시작
+        this.scene.start("GameScene");
+      });
+    }
   }
 
   // 모드 변경 시 화면 효과
@@ -678,9 +731,23 @@ class MenuScene extends Phaser.Scene {
   }
 
   async startSelectedMode() {
-    console.log(`${currentMode} 모드 시작!`);
+    console.log(`${currentMode} 모드 선택됨`);
+
+    // 데이터를 미리 로드 (공통)
     await loadDataForMode(currentMode);
-    this.scene.start("GameScene");
+
+    if (currentMode === "multi") {
+      // [멀티 모드] -> 바로 시작하지 않고 서버에 매칭 요청만 보냄
+      if (typeof socket !== "undefined") {
+        socket.emit("join_game", { nickname: currentPlayerName });
+        // 여기서 scene.start를 하지 않습니다! (socket.on('game_start')가 해줌)
+      } else {
+        alert("서버 연결 실패! 새로고침 해주세요.");
+      }
+    } else {
+      // [싱글 모드] -> 바로 시작
+      this.scene.start("GameScene");
+    }
   }
 }
 

@@ -595,11 +595,11 @@ export const RECIPES = [
   // 은 + 은 = 겐야
   { a: "kakushi", b: "kakushi", result: "genya" },
 
-  // 까마귀 + 은 = 카나오
+  // 까마귀 + 은 = 카나오 (기존 유지)
   { a: "crow", b: "kakushi", result: "kanao" },
 
-  // 까마귀 + 은 = 아오이
-  { a: "crow", b: "kakushi", result: "aoi" },
+  // 일반 + 일반 = 아오이
+  { a: "slayer_basic", b: "slayer_basic", result: "aoi" },
 
   // =============================================================
   // [2단계] 성장 조합 (T2 + T1 -> T3)

@@ -1,9 +1,9 @@
 // data.js 파일
 export const GAME_CONFIG = {
-  initialGold: 1200,
-  maxEnemies: 60,
+  initialGold: 1500,
+  maxEnemies: 90,
   roundTime: 60,
-  spawnInterval: 1000,
+  spawnInterval: 900,
   unitSummonCost: 150,
   bgColors: {
     normal: 0x050510,
@@ -595,11 +595,11 @@ export const RECIPES = [
   // 은 + 은 = 겐야
   { a: "kakushi", b: "kakushi", result: "genya" },
 
-  // 까마귀 + 은 = 카나오
+  // 까마귀 + 은 = 카나오 (기존 유지)
   { a: "crow", b: "kakushi", result: "kanao" },
 
-  // 까마귀 + 은 = 아오이
-  { a: "crow", b: "kakushi", result: "aoi" },
+  // 일반 + 일반 = 아오이
+  { a: "slayer_basic", b: "slayer_basic", result: "aoi" },
 
   // =============================================================
   // [2단계] 성장 조합 (T2 + T1 -> T3)
@@ -773,63 +773,63 @@ export const ENEMY_CONFIG = {
       color: 0xffffff,
       radius: 25,
       name: "하현5 루이",
-      hpMult: 100000,
+      hpMult: 200000,
       cutscene: "boss_rui_img",
     },
     boss_enmu: {
       color: 0x8e44ad,
       radius: 25,
       name: "하현1 엔무",
-      hpMult: 200000,
+      hpMult: 400000,
       cutscene: "boss_enmu_img",
     },
     boss_daki: {
       color: 0x00b894,
       radius: 30,
       name: "상현6 다키",
-      hpMult: 500000,
+      hpMult: 1000000,
       cutscene: "boss_daki_img",
     },
     boss_gyokko: {
       color: 0x74b9ff,
       radius: 30,
       name: "상현5 굣코",
-      hpMult: 1000000,
+      hpMult: 2000000,
       cutscene: "boss_gyokko_img",
     },
     boss_hantengu: {
       color: 0xff7675,
       radius: 30,
       name: "상현4 한텐구",
-      hpMult: 3000000,
+      hpMult: 6000000,
       cutscene: "boss_hantengu_img",
     },
     boss_akaza: {
       color: 0xe17055,
       radius: 35,
       name: "상현3 아카자",
-      hpMult: 10000000,
+      hpMult: 20000000,
       cutscene: "boss_akaza_img",
     },
     boss_doma: {
       color: 0x81ecec,
       radius: 35,
       name: "상현2 도우마",
-      hpMult: 20000000,
+      hpMult: 40000000,
       cutscene: "boss_doma_img",
     },
     boss_koku: {
       color: 0x6c5ce7,
       radius: 40,
       name: "상현1 코쿠시보",
-      hpMult: 30000000,
+      hpMult: 60000000,
       cutscene: "boss_koku_img",
     },
     boss_muzan: {
       color: 0x000000,
       radius: 50,
       name: "키부츠지 무잔",
-      hpMult: 60000000,
+      hpMult: 120000000,
       cutscene: "boss_muzan_img",
     },
   },
