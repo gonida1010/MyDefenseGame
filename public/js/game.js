@@ -1682,7 +1682,10 @@ class GameScene extends Phaser.Scene {
 
     if (this.isMultiplayer) {
       socket.off("sync_action");
+      socket.off("game_state_change");
+      socket.off("partner_disconnected");
 
+      // [기존] 유닛/적 동기화
       socket.on("sync_action", (data) => {
         // 1. 적 생성
         if (data.type === "spawn_enemy") {
@@ -1704,6 +1707,21 @@ class GameScene extends Phaser.Scene {
         else if (data.type === "enemy_damage") {
           this.handleEnemyDamage(data.payload);
         }
+      });
+
+      // [신규] 게임 상태(속도, 정지) 동기화
+      socket.on("game_state_change", (data) => {
+        if (data.type === "speed") {
+          this.applySpeedChange(data.value);
+        } else if (data.type === "pause") {
+          this.applyPause(data.isPaused);
+        }
+      });
+
+      // [신규] 파트너 탈주 처리
+      socket.on("partner_disconnected", () => {
+        alert("동료와의 연결이 끊어졌습니다. 게임을 종료합니다.");
+        this.scene.start("MenuScene"); // 메뉴로 강제 이동
       });
     }
   }
@@ -1952,23 +1970,30 @@ class GameScene extends Phaser.Scene {
     this.createRecipePopup();
   }
 
-  // [신규 기능] 1배속 <-> 2배속 토글
+  // 1. 배속 버튼 눌렀을 때
   toggleSpeed() {
-    const targetSpeed = this.time.timeScale > 1 ? 1.0 : 2.0;
-    this.time.timeScale = targetSpeed;
-
-    // 2. 물리 엔진(Arcade) 시간 스케일도 맞춤 (총알 속도 등)
-    this.physics.world.timeScale = 1 / targetSpeed;
-    // 주의: Arcade Physics의 timeScale은 '1/배수'로 설정해야 빨라진다. (1/2 = 0.5가 2배속)
-
-    // 3. 텍스트 업데이트
-    this.txtSpeed.setText(`속도: ${targetSpeed}x`);
-    // 버튼 색상
-    if (targetSpeed === 2) {
-      this.txtSpeed.setColor("#ffff00");
-    } else {
-      this.txtSpeed.setColor("0x000000");
+    // 멀티 모드라면 -> 서버에 "속도 바꿔줘" 요청
+    if (this.isMultiplayer) {
+      const nextSpeed = this.time.timeScale > 1 ? 1.0 : 2.0;
+      socket.emit("game_state_change", {
+        room: this.myRoomName,
+        type: "speed",
+        value: nextSpeed,
+      });
+      return; // 내 거 바로 실행 안 함 (서버 응답 오면 실행)
     }
+
+    // 싱글 모드면 기존 로직 실행
+    this.applySpeedChange(this.time.timeScale > 1 ? 1.0 : 2.0);
+  }
+
+  // [신규] 실제 속도 변경 로직 분리
+  applySpeedChange(targetSpeed) {
+    this.time.timeScale = targetSpeed;
+    this.physics.world.timeScale = 1 / targetSpeed;
+    this.txtSpeed.setText(`속도: ${targetSpeed}x`);
+    if (targetSpeed === 2) this.txtSpeed.setColor("#ffff00");
+    else this.txtSpeed.setColor("0x000000");
   }
 
   // 선택된 유닛 판매
@@ -3829,23 +3854,40 @@ class GameScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5)
-      .setDepth(2000); // 적보다 위에 보이게
+      .setDepth(2000);
 
     // 위로 떠오르며 사라지는 애니메이션
     this.tweens.add({
       targets: txt,
-      y: y - 40, // 위로 60픽셀 이동
-      alpha: 0, // 투명해짐
-      duration: 1200, // 1.2초 동안
+      y: y - 40,
+      alpha: 0,
+      duration: 1200,
       ease: "Power2",
       onComplete: () => {
-        txt.destroy(); // 애니메이션 끝나면 삭제
+        txt.destroy();
       },
     });
   }
 
+  // 2. 일시정지 버튼 눌렀을 때
   togglePause() {
-    this.isPaused = !this.isPaused;
+    // 멀티 모드라면 -> 서버에 "멈춰!" 요청
+    if (this.isMultiplayer) {
+      socket.emit("game_state_change", {
+        room: this.myRoomName,
+        type: "pause",
+        isPaused: !this.isPaused,
+      });
+      return;
+    }
+
+    // 싱글 모드
+    this.applyPause(!this.isPaused);
+  }
+
+  // [신규] 실제 일시정지 로직 분리
+  applyPause(shouldPause) {
+    this.isPaused = shouldPause;
     if (this.isPaused) {
       this.physics.pause();
       this.pauseOverlay.setVisible(true);
@@ -3858,8 +3900,6 @@ class GameScene extends Phaser.Scene {
       this.txtPause.setText("일시 정지");
     }
   }
-
-  // GameScene 클래스 내부의 update 함수
 
   update(time, delta) {
     if (this.isPaused || this.isGameOver) return;

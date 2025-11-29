@@ -31,6 +31,9 @@ io.on("connection", (socket) => {
       socket.join(roomName);
       partnerSocket.join(roomName);
 
+      socket.currentRoom = roomName;
+      partnerSocket.currentRoom = roomName;
+
       io.to(roomName).emit("game_start", {
         players: [
           { id: partnerSocket.id, name: partnerName },
@@ -56,13 +59,22 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 유저가 나갔을 때 처리
+  socket.on("game_state_change", (data) => {
+    if (data.room) {
+      // 나를 포함한 방 전체에 알림 (속도는 다 같이 바껴야 하니까)
+      io.to(data.room).emit("game_state_change", data);
+    }
+  });
+
+  // 2. [수정] 유접 접속 해제 (disconnect)
   socket.on("disconnect", () => {
     console.log("❌ 유저 접속 해제:", socket.id);
-    // 만약 대기 중이던 사람이 나갔다면 대기열 비우기
+    // (1) 대기 중이던 사람이면 대기열 삭제
     if (waitingPlayer && waitingPlayer.socket.id === socket.id) {
       waitingPlayer = null;
-      console.log("대기열 초기화됨");
+    }
+    if (socket.currentRoom) {
+      socket.to(socket.currentRoom).emit("partner_disconnected");
     }
   });
 });
