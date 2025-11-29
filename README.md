@@ -1,7 +1,5 @@
 # 귀멸의 칼날 랜덤 디펜스 (Demon Slayer Random Defense)
 
-![Game Banner](assets/images/menu_bg.png)
-
 > **"마음을 불태워라. 한계는 없다."**
 >
 > 인기 애니메이션 **'귀멸의 칼날'** IP를 활용한 팬메이드 웹 랜덤 디펜스 게임입니다.
