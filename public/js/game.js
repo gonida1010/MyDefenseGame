@@ -1706,6 +1706,26 @@ class GameScene extends Phaser.Scene {
         // [★신규] 적 데미지 동기화
         else if (data.type === "enemy_damage") {
           this.handleEnemyDamage(data.payload);
+        } else if (data.type === "game_over") {
+          this.gameOver();
+        }
+        // [신규] 라운드 동기화
+        else if (data.type === "next_round") {
+          // 방장이 시키는 대로 라운드 변경
+          this.handleRoundEnd(data.payload.round);
+        }
+        // [추가] 시간 강제 동기화
+        else if (data.type === "sync_time") {
+          // 내 시간과 2초 이상 차이나면 방장 시간으로 강제 맞춤
+          if (Math.abs(this.currentTime - data.payload.time) > 2) {
+            console.log("시간 동기화 보정:", data.payload.time);
+            this.currentTime = data.payload.time;
+          }
+          // 라운드가 다르면 라운드도 맞춤
+          if (this.round !== data.payload.round) {
+            this.round = data.payload.round;
+            this.txtRound.setText(`ROUND: ${this.round}`);
+          }
         }
       });
 
@@ -2233,6 +2253,16 @@ class GameScene extends Phaser.Scene {
 
     this.txtTime.setText(`TIME: ${this.currentTime}`);
 
+    if (this.currentTime <= 0) {
+      // 1. 멀티 모드일 때: 방장이 아니면 아무것도 안 함 (방장 신호 대기)
+      if (this.isMultiplayer && !this.isHost) {
+        return;
+      }
+
+      // 2. 싱글이거나 방장인 경우: 라운드 넘김 로직 실행
+      this.processRoundEnd();
+    }
+
     // 시간이 0이 되었을 때의 처리
     if (this.currentTime <= 0) {
       // 1. 현재가 보스 라운드인지 확인 (10, 20, 30...)
@@ -2250,6 +2280,17 @@ class GameScene extends Phaser.Scene {
       } else {
         // 일반 라운드거나, 보스를 이미 잡았다면 -> 다음 라운드 진행
         this.handleRoundEnd();
+      }
+
+      if (this.isMultiplayer && this.isHost) {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "sync_time", // 시간 동기화 신호
+          payload: {
+            time: this.currentTime,
+            round: this.round,
+          },
+        });
       }
     }
   }
@@ -2365,20 +2406,55 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  handleRoundEnd() {
-    this.round++;
-    this.currentTime = GAME_CONFIG.roundTime;
+  // [신규] 라운드 종료 판단 (방장만 실행)
+  processRoundEnd() {
+    // 보스 라운드 체크 등 기존 로직
+    const isBossRound = this.round % 10 === 0;
+    const liveBoss = this.enemies
+      .getChildren()
+      .find((e) => e.active && e.isBoss);
+
+    if (isBossRound && liveBoss) {
+      this.gameOver(); // 보스 못 잡음
+
+      // 멀티면 게임오버 신호 전송 (위에서 update에 넣었지만 확실하게 한번 더)
+      if (this.isMultiplayer) {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "game_over",
+          payload: {},
+        });
+      }
+    } else {
+      // 다음 라운드로 진행!
+      const nextRound = this.round + 1;
+
+      // 내 화면 갱신
+      this.handleRoundEnd(nextRound);
+
+      // 방원들에게 "다음 라운드로 가라!" 명령
+      if (this.isMultiplayer) {
+        socket.emit("sync_action", {
+          room: this.myRoomName,
+          type: "next_round",
+          payload: { round: nextRound },
+        });
+      }
+    }
+  }
+
+  // [수정] 실제 라운드 값 갱신 (방장/참가자 모두 실행)
+  handleRoundEnd(serverRound) {
+    // 서버에서 준 라운드 값으로 덮어씌움 (동기화)
+    if (serverRound) this.round = serverRound;
+    else this.round++;
+
+    this.currentTime = GAME_CONFIG.roundTime; // 시간 초기화
     this.bossSpawned = false;
     this.spawnTimer.paused = false;
 
-    // 텍스트 업데이트
     this.txtRound.setText(`ROUND: ${this.round}`);
     this.txtTime.setText(`TIME: ${this.currentTime}`);
-
-    // 보상 지급(벨런스 조정 시 수정)
-    // const reward = 50 + this.round * 10;
-    // this.gold += reward;
-    // this.txtGold.setText(`GOLD: ${this.gold}`);
 
     // 보스 라운드 체크 (10라운드 단위)
     if (this.round % ENEMY_CONFIG.bossInterval === 0) {
@@ -3213,6 +3289,7 @@ class GameScene extends Phaser.Scene {
     unit.gridX = -1;
     unit.gridY = -1;
     unit.myUniqueId = data.uniqueId; // ID 저장 필수
+    unit.isPartner = true;
 
     unit.setInteractive();
     unit.setAlpha(0.9);
@@ -3688,6 +3765,10 @@ class GameScene extends Phaser.Scene {
 
     // 2. 투사체 생성
     const b = this.bullets.create(unit.x, unit.y, bulletKey);
+    // [★추가] 파트너가 쏜 총알은 '유령 총알(Ghost)'로 표시
+    if (unit.isPartner) {
+      b.isGhost = true;
+    }
 
     // 2-1. 투사체 크기 (티어별 직접 지정)
     let scaleRatio = 1.0;
@@ -3766,7 +3847,10 @@ class GameScene extends Phaser.Scene {
   hitEnemy(b, e) {
     // 이미 맞았거나(active false), 물리 엔진이 꺼진(충돌 처리된) 총알은 무시
     if (!b.active || !e.active || !b.body.enable) return;
-
+    if (b.isGhost) {
+      b.destroy(); // 총알은 사라짐
+      return;
+    }
     b.body.enable = false;
     b.body.setVelocity(0, 0);
 
@@ -3796,8 +3880,8 @@ class GameScene extends Phaser.Scene {
         this.showGoldEffect(e.x, e.y, "+1000G", "#ff0000", 30);
         if (currentMode === "normal" && this.round === 90) {
           console.log("스토리 모드 클리어!");
-          this.gameClear(); // 승리 함수 호출
-          return; // 이후 로직(골드 획득 등) 진행 안하고 종료
+          this.gameClear();
+          return;
         }
 
         // 하드 모드는 조건문이 없으므로 그냥 계속 진행됨 (무한 라운드)
@@ -3815,7 +3899,7 @@ class GameScene extends Phaser.Scene {
         socket.emit("sync_action", {
           room: this.myRoomName,
           type: "enemy_died",
-          payload: { uniqueId: e.uniqueId, isBoss: e.isBoss }, // 보스 여부도 보냄
+          payload: { uniqueId: e.uniqueId, isBoss: e.isBoss },
         });
       }
     }
@@ -3976,7 +4060,6 @@ class GameScene extends Phaser.Scene {
       this.txtEnemyCount.setText(
         `남은 혈귀: ${currentEnemies} / ${maxEnemies}`
       );
-
       if (currentEnemies >= maxEnemies * 0.8) {
         this.txtEnemyCount.setColor("#ff0000");
       } else {
@@ -3985,10 +4068,19 @@ class GameScene extends Phaser.Scene {
     }
 
     if (currentEnemies > maxEnemies) {
-      this.gameOver();
+      if (!this.isGameOver) {
+        this.gameOver(); // 내 화면 종료
+
+        if (this.isMultiplayer) {
+          socket.emit("sync_action", {
+            room: this.myRoomName,
+            type: "game_over", // 패배 신호 전송
+            payload: {},
+          });
+        }
+      }
     }
   }
-  // GameScene 클래스 내부에 추가
 
   showBossCutscene(bossKey, bossName, cutsceneImgKey) {
     // 1. 게임 진행 일시 정지 (타이머 및 물리 엔진)
