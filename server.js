@@ -5,10 +5,10 @@ const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 const path = require("path");
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 let waitingPlayer = null;
@@ -25,7 +25,7 @@ io.on("connection", (socket) => {
 
       console.log(`매칭 성공! ${partnerName} vs ${userData.nickname}`);
 
-      // 방 이름 만들기 (두 사람만 들어갈 방)
+      // 방 이름 만들기
       const roomName = `room_${partnerSocket.id}_${socket.id}`;
       // 두 사람을 같은 방에 넣음
       socket.join(roomName);
@@ -54,7 +54,7 @@ io.on("connection", (socket) => {
 
   socket.on("sync_action", (data) => {
     if (data.room) {
-      // 나를 제외한 방 안의 사람들에게 전송 (broadcast)
+      // 나를 제외한 방 안의 사람들에게 전송
       socket.to(data.room).emit("sync_action", data);
     }
   });
@@ -66,10 +66,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 2. [수정] 유접 접속 해제 (disconnect)
+  // 유접 접속 해제
   socket.on("disconnect", () => {
     console.log("❌ 유저 접속 해제:", socket.id);
-    // (1) 대기 중이던 사람이면 대기열 삭제
     if (waitingPlayer && waitingPlayer.socket.id === socket.id) {
       waitingPlayer = null;
     }
