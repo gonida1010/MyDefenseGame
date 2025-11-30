@@ -879,6 +879,10 @@ class GameScene extends Phaser.Scene {
       .setDisplaySize(1280, 720)
       .setInteractive();
 
+    this.input.setDefaultCursor(
+      "url(assets/images/cursor.png), 14 0, pointer'"
+    );
+
     // 로드한 "basic_bullet_img"를 기반으로 애니메이션 생성
     if (!this.anims.exists("anim_slayer_basic")) {
       this.anims.create({

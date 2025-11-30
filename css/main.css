@@ -8,6 +8,16 @@
   /* swap 대신 block을 쓰면 로딩될 때까지 글씨를 숨겨서 깜빡임을 방지함 */
 }
 
+canvas {
+  cursor: url("../assets/images/cursor.png") 14 0, auto !important;
+}
+body,
+div,
+button,
+a {
+  cursor: url("../assets/images/cursor.png") 14 0, auto !important;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -16,6 +26,7 @@ body {
   font-family: "Cafe24ClassicType", "Noto Sans KR", sans-serif;
   overflow: hidden;
   user-select: none;
+  /* cursor: url("../assets/images/cursor.png") 14 0, auto !important; */
 }
 
 #game-container {
